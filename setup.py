@@ -2,10 +2,10 @@
 
 from distutils.core import setup
 
-setup(name='fruttaeverdura',
+setup(name='mistofrutta',
       version='1.0',
       description='Collection of random utilities',
       author='Francesco Randi',
       author_email='francesco.randi@gmail.com',
-      packages=['fruttaeverdura'],
+      packages=['mistofrutta'],
      )

@@ -1,2 +1,2 @@
-# frutta
+# mistofrutta
 Collection of random utilites
