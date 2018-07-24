@@ -40,9 +40,9 @@ class IndexTracker(object):
         
         #Plot and initialize vmax
         if len(self.dimensions) == 4:
-            self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale,cmap=self.Cmap[self.ch])
+            self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale,cmap=self.Cmap[self.ch],interpolation='none')
         else:
-            self.im = ax.imshow(self.X[self.z, ...]/self.scale,cmap=self.Cmap[self.ch])
+            self.im = ax.imshow(self.X[self.z, ...]/self.scale,cmap=self.Cmap[self.ch], interpolation='none')
         self.update()
 
     def onscroll(self, event):
@@ -74,8 +74,17 @@ class IndexTracker(object):
         self.im.axes.figure.canvas.draw()
 
 
-def plot_hyperstack(A):
+def hyperstack(A):
     '''
+    Parameters
+    ----------
+    A: numpy array
+        Hyperstack [channel, z, x, y] or [z, x, y]
+    
+    Returns
+    -------
+    None
+    
     Takes a hyperstack with shape [channel, z, x, y] or [z, x, y] and
     produces the GUI to navigate it.    
     '''
@@ -84,6 +93,8 @@ def plot_hyperstack(A):
     fig.canvas.mpl_connect('key_press_event', tracker.onkeypress)
     fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
     plt.show()
+    fig.clear()
+    #del tracker
  
 #import unmix as um
 #filename = "/home/francesco/tmp/unmixing/SU_180503/SU_180503_AKS153.3.iii_W2Z"

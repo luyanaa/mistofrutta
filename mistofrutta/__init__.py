@@ -1,3 +1,4 @@
-__all__ = ['hyperstacks']
+__all__ = ['plt, geometry']
 
-from . import hyperstacks
+from . import plt
+from . import geometry
