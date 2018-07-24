@@ -81,12 +81,8 @@ def rotate_3D_image(A, theta, ux, uy, uz, x0=0.0, y0=0.0, z0=0.0):
                                             bounds_error=False, fill_value=0.0)
     
     XYZprime = np.dot(matrix(theta, ux, uy, uz),XYZ)
-    print(XYZprime.shape)
     
-    #GridPrime = np.array(np.meshgrid(XYZprime[0],XYZprime[1],XYZprime[2])).T.reshape((nx*ny*nz,3))
-
     Aprime = interpolating_function(XYZprime.T)
-
     Aprime = Aprime.reshape((nx,ny,nz))
 
     return Aprime
