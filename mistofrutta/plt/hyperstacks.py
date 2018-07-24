@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
 class IndexTracker(object):
-    def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta']):
+    def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap=''):
         self.ax = ax
         ax.set_title('Scroll to navigate in z\nA-D to change channel, W-S to change color scaling')
         
@@ -19,9 +19,13 @@ class IndexTracker(object):
         
         #Build colormaps
         self.Cmap = []
-        self.ncolors = len(colors)
-        for q in np.arange(self.ncolors):
-            cmap = LinearSegmentedColormap.from_list('name', ['black',colors[q]])
+        if cmap=='':
+            self.ncolors = len(colors)
+            for q in np.arange(self.ncolors):
+                cmap = LinearSegmentedColormap.from_list('name', ['black',colors[q]])
+                self.Cmap.append(cmap)
+        else:
+            self.ncolors = 1
             self.Cmap.append(cmap)
         
         #Extract informations about the stack
@@ -74,7 +78,7 @@ class IndexTracker(object):
         self.im.axes.figure.canvas.draw()
 
 
-def hyperstack(A):
+def hyperstack(A,cmap=''):
     '''
     Parameters
     ----------
@@ -89,12 +93,12 @@ def hyperstack(A):
     produces the GUI to navigate it.    
     '''
     fig, ax = plt.subplots(1, 1)
-    tracker = IndexTracker(ax, A)
+    tracker = IndexTracker(ax, A, cmap=cmap)
     fig.canvas.mpl_connect('key_press_event', tracker.onkeypress)
     fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
     plt.show()
     fig.clear()
-    #del tracker
+    del tracker
  
 #import unmix as um
 #filename = "/home/francesco/tmp/unmixing/SU_180503/SU_180503_AKS153.3.iii_W2Z"
