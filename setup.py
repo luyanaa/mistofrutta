@@ -7,5 +7,5 @@ setup(name='mistofrutta',
       description='Collection of random utilities',
       author='Francesco Randi',
       author_email='francesco.randi@gmail.com',
-      packages=['mistofrutta'],
+      packages=['mistofrutta.plt','mistofrutta.geometry'],
      )

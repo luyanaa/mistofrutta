@@ -1,3 +1,4 @@
-__all__ = ['rotations']
+__all__ = ['rotations', 'draw']
 
 from . import rotations
+from . import draw
