@@ -68,7 +68,7 @@ class rectangle:
         if self.multiple:
             print("\nMULTIPLE RECTANGLES\n\n"+\
                 "You can save multiple rectangles: add the drawn rectangle "+\
-                "pressing a and delete the last one pressing d.\n" +\
+                "pressing \"a\" and delete the last one pressing \"d\".\n" +\
                 "After you add a rectangle, you can proceed directly to draw "+\
                 "the next one.\n\n")
         
