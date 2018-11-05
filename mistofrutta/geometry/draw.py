@@ -97,10 +97,10 @@ class rectangle:
     def keyboardCallback(self,event):
         if event.key in ['A', 'a']:
             if self.multiple:
-                self.x1 = np.min(self.rs.corners[0])
-                self.x2 = np.max(self.rs.corners[0])
-                self.y1 = np.min(self.rs.corners[1])
-                self.y2 = np.max(self.rs.corners[1])
+                self.x1 = int(np.min(self.rs.corners[0]))
+                self.x2 = int(np.max(self.rs.corners[0]))
+                self.y1 = int(np.min(self.rs.corners[1]))
+                self.y2 = int(np.max(self.rs.corners[1]))
                 self.rectangles.append(np.array([[self.x1,self.y1],
                                                 [self.x2,self.y2]]))
                 print("Adding rectangle\t"+str(int(self.x1))+" "+\
@@ -133,10 +133,10 @@ class rectangle:
         # Returns a single rectangle if self.multiple is false.
         # Otherwise, it returns an array of rectangles.
         if not self.multiple:
-            self.x1 = np.min(self.rs.corners[0])
-            self.x2 = np.max(self.rs.corners[0])
-            self.y1 = np.min(self.rs.corners[1])
-            self.y2 = np.max(self.rs.corners[1])
+            self.x1 = int(np.min(self.rs.corners[0]))
+            self.x2 = int(np.max(self.rs.corners[0]))
+            self.y1 = int(np.min(self.rs.corners[1]))
+            self.y2 = int(np.max(self.rs.corners[1]))
             
             return np.array([[self.x1,self.y1],[self.x2,self.y2]])
         else:
