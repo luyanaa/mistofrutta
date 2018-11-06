@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors
 from matplotlib.widgets import RectangleSelector
 from matplotlib.widgets import PolygonSelector
 from matplotlib.widgets import Slider
@@ -77,14 +78,22 @@ class rectangle:
                 "After you add a rectangle, you can proceed directly to draw "+\
                 "the next one.\n\n")
         
-        rectprops = dict(facecolor='red', edgecolor = 'white',
-                 alpha=1.0, fill=False, lw=2)
-        
-        # Create the figure and plot the image
+        # Create the figure
         self.fig = plt.figure(1)
         self.ax1 = self.fig.add_subplot(111)
-        self.ax1.imshow(self.Image.T)
         
+        # Set a custom viridis color map useful for thresholding
+        self.cmap = plt.cm.viridis
+        cmaplist = [self.cmap(i) for i in range(self.cmap.N)]
+        cmaplist[0] = (1.,0.,0.,1.)
+        self.cmap = matplotlib.colors.LinearSegmentedColormap.from_list('mcm',cmaplist, self.cmap.N)
+        
+        # Plot the image
+        self.ax1.imshow(self.Image.T,cmap=self.cmap)
+        
+        # Prepare the rectangle selector
+        rectprops = dict(facecolor='red', edgecolor = 'white',
+                 alpha=1.0, fill=False, lw=2)
         self.rs = RectangleSelector(self.ax1, self.line_select_callback,
                        drawtype='box', useblit=False, button=[1], 
                        minspanx=5, minspany=5, spancoords='pixels', 
@@ -96,7 +105,7 @@ class rectangle:
         self.vmin = np.min(self.Image)
         self.vmax = np.max(self.Image)
         axThresholdSlider = plt.axes([0.25, 0.02, 0.65, 0.015], facecolor='lightgoldenrodyellow')
-        self.thresholdSlider = Slider(axThresholdSlider, 'Threshold', self.vmin, self.vmax, valinit=self.vmin)
+        self.thresholdSlider = Slider(axThresholdSlider, 'Threshold', self.vmin*0.95, self.vmax, valinit=self.vmin)
         self.thresholdSlider.on_changed(self.updateThreshold)
         
         plt.show()
@@ -108,7 +117,7 @@ class rectangle:
     def updateThreshold(self, val):
         if abs(1.0-val/self.vmin) > 0.05:
             self.vmin = val
-            self.ax1.imshow(self.Image.T, vmin=val)
+            self.ax1.imshow(self.Image.T, vmin=val, cmap=self.cmap)
             self.fig.canvas.draw()
         
     
@@ -159,6 +168,11 @@ class rectangle:
             return np.array([[self.x1,self.y1],[self.x2,self.y2]])
         else:
             return np.array(self.rectangles)
+            
+    def getMask(self):
+        self.Mask = self.Image > self.vmin
+        
+        return self.Mask
         
 class polygon:
     def __init__(self, image, dataType='image'):
