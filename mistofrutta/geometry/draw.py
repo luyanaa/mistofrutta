@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import RectangleSelector
 from matplotlib.widgets import PolygonSelector
+from matplotlib.widgets import Slider
 
 class line:
     def __init__(self, image):
@@ -24,6 +25,8 @@ class line:
         self.line, = ax1.plot(0,0,'*k')
         
         self.cid = self.line.figure.canvas.mpl_connect('button_press_event', self)
+        
+        # Start displaying the plot
         plt.show()
 
     # Define callback function to be called when there is a mouse click
@@ -55,6 +58,8 @@ class rectangle:
         
         self.multiple = multiple
         self.rectangles = []
+        
+        self.Image = image
     
         # Print instructions for the user
         print("\nINSTRUCTIONS TO DRAW THE RECTANGLE\n\n"+\
@@ -76,9 +81,9 @@ class rectangle:
                  alpha=1.0, fill=False, lw=2)
         
         # Create the figure and plot the image
-        fig = plt.figure(1)
-        self.ax1 = fig.add_subplot(111)
-        self.ax1.imshow(image.T)
+        self.fig = plt.figure(1)
+        self.ax1 = self.fig.add_subplot(111)
+        self.ax1.imshow(self.Image.T)
         
         self.rs = RectangleSelector(self.ax1, self.line_select_callback,
                        drawtype='box', useblit=False, button=[1], 
@@ -87,11 +92,24 @@ class rectangle:
                        
         plt.connect('key_press_event', self.keyboardCallback)
         
+        # Add slider to set threshold
+        self.vmin = np.min(self.Image)
+        self.vmax = np.max(self.Image)
+        axThresholdSlider = plt.axes([0.25, 0.02, 0.65, 0.015], facecolor='lightgoldenrodyellow')
+        self.thresholdSlider = Slider(axThresholdSlider, 'Threshold', self.vmin, self.vmax, valinit=self.vmin)
+        self.thresholdSlider.on_changed(self.updateThreshold)
+        
         plt.show()
 
 
     def line_select_callback(self,eclick,erelease):
         return 1
+   
+    def updateThreshold(self, val):
+        if abs(1.0-val/self.vmin) > 0.05:
+            self.vmin = val
+            self.ax1.imshow(self.Image.T, vmin=val)
+            self.fig.canvas.draw()
         
     
     def keyboardCallback(self,event):
