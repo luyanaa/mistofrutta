@@ -156,18 +156,35 @@ class rectangle:
                 
 
         
-    def getRectangle(self):
+    def getRectangle(self,mode="coordinates"):
         # Returns a single rectangle if self.multiple is false.
         # Otherwise, it returns an array of rectangles.
+        
         if not self.multiple:
             self.x1 = int(np.min(self.rs.corners[0]))
             self.x2 = int(np.max(self.rs.corners[0]))
             self.y1 = int(np.min(self.rs.corners[1]))
             self.y2 = int(np.max(self.rs.corners[1]))
             
-            return np.array([[self.x1,self.y1],[self.x2,self.y2]])
+            if mode=="coordinates":
+                return np.array([[self.x1,self.y1],[self.x2,self.y2]])
+            elif mode=="slice":
+                return tuple([slice(*i) for i in zip([self.x1,self.y1],[self.x2,self.y2])])
+            elif mode=="slice_full":
+                return tuple([slice(*i) for i in zip([None,None,self.x1,self.y1],[None,None,self.x2,self.y2])])
         else:
-            return np.array(self.rectangles)
+            if mode=="coordinates":
+                return np.array(self.rectangles)
+            elif mode=="slice":
+                slices = []
+                for r in self.rectangles:
+                    slices.append(tuple([slice(*i) for i in zip([r[0,0],r[0,1]], [r[1,0],r[1,1]])]))
+                return slices
+            elif mode=="slice_full":
+                slices = []
+                for r in self.rectangles:
+                    slices.append(tuple([slice(*i) for i in zip([None, None, r[0,0],r[0,1]], [None, None, r[1,0],r[1,1]])]))
+                return slices
             
     def getMask(self):
         self.Mask = self.Image > self.vmin
