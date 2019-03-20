@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
 class IndexTracker(object):
-    def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap=''):
+    def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap='', Overlay=[]):
         self.ax = ax
         ax.set_title('Scroll to navigate in z\nA-D to change channel, W-S to change color scaling')
         
@@ -37,6 +37,8 @@ class IndexTracker(object):
         if len(self.dimensions) == 4: 
             self.channels = self.dimensions[-4]
         
+        self.OverlayData = Overlay
+        
         #Initialize z position and channel for first plot
         self.z = self.slices//2
         self.ch = 0
@@ -47,6 +49,17 @@ class IndexTracker(object):
             self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale,cmap=self.Cmap[self.ch],interpolation='none')
         else:
             self.im = ax.imshow(self.X[self.z, ...]/self.scale,cmap=self.Cmap[self.ch], interpolation='none')
+        
+        try:
+            if self.ch != 4: 
+                goodcolor='r'
+            else:
+                goodcolor='g'
+            punti = self.OverlayData[self.z].T
+            self.overlay, = ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
+        except:
+            print("no overlay")
+        
         self.update()
 
     def onscroll(self, event):
@@ -74,11 +87,23 @@ class IndexTracker(object):
             self.im.set_data(self.X[self.z, ...]/self.scale)
         self.ax.set_xlabel('slice %s' % self.z)
         self.im.set_cmap(self.Cmap[self.ch])
+        
+        try:
+            if self.ch != 4: 
+                goodcolor='r'
+            else:
+                goodcolor='g'
+            punti = self.OverlayData[self.z].T
+        except:
+            pass        
+        self.overlay.set_xdata(punti[0])
+        self.overlay.set_ydata(punti[1])
+        
         self.im.axes.figure.canvas.draw()
-        self.im.axes.figure.canvas.draw()
+        #self.im.axes.figure.canvas.draw()
 
 
-def hyperstack(A,cmap=''):
+def hyperstack(A,cmap='',Overlay=[]):
     '''
     Parameters
     ----------
@@ -93,7 +118,7 @@ def hyperstack(A,cmap=''):
     produces the GUI to navigate it.    
     '''
     fig, ax = plt.subplots(1, 1)
-    tracker = IndexTracker(ax, A, cmap=cmap)
+    tracker = IndexTracker(ax, A, cmap=cmap, Overlay=Overlay)
     fig.canvas.mpl_connect('key_press_event', tracker.onkeypress)
     fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
     plt.show()
