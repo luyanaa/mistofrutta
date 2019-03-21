@@ -94,10 +94,10 @@ class IndexTracker(object):
             else:
                 goodcolor='g'
             punti = self.OverlayData[self.z].T
+            self.overlay.set_xdata(punti[0])
+            self.overlay.set_ydata(punti[1])
         except:
             pass        
-        self.overlay.set_xdata(punti[0])
-        self.overlay.set_ydata(punti[1])
         
         self.im.axes.figure.canvas.draw()
         #self.im.axes.figure.canvas.draw()
