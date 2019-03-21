@@ -42,13 +42,14 @@ class IndexTracker(object):
         #Initialize z position and channel for first plot
         self.z = self.slices//2
         self.ch = 0
-        self.scale = 1.0
+        self.scale = 1
+        self.vmax = np.max(self.X)
         
         #Plot and initialize vmax
         if len(self.dimensions) == 4:
             self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale,cmap=self.Cmap[self.ch],interpolation='none')
         else:
-            self.im = ax.imshow(self.X[self.z, ...]/self.scale,cmap=self.Cmap[self.ch], interpolation='none')
+            self.im = ax.imshow(self.X[self.z, ...]/self.scale,cmap=self.Cmap[self.ch], interpolation='none',vmax=self.vmax)
         
         try:
             if self.ch != 4: 
