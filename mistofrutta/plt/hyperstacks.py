@@ -9,7 +9,7 @@ class IndexTracker(object):
         self.ax = ax
         ax.set_title('Scroll to navigate in z\nA-D to change channel, W-S to change color scaling')
         
-        new_keys_set = {'a', 'd', 'w', 's'}
+        new_keys_set = {'a', 'd', 'w', 's', 'up', 'down'}
         for prop in plt.rcParams:
             if prop.startswith('keymap.'):
                 keys = plt.rcParams[prop]
@@ -34,6 +34,7 @@ class IndexTracker(object):
         self.slices = self.dimensions[-3]
         rows = self.dimensions[-2]
         cols = self.dimensions[-1]
+        self.channels = 1
         if len(self.dimensions) == 4: 
             self.channels = self.dimensions[-4]
         
@@ -42,14 +43,14 @@ class IndexTracker(object):
         #Initialize z position and channel for first plot
         self.z = self.slices//2
         self.ch = 0
-        self.scale = 1
+        self.scale = np.ones(self.channels)
         self.vmax = np.max(self.X)
         
         #Plot and initialize vmax
         if len(self.dimensions) == 4:
-            self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale,cmap=self.Cmap[self.ch],interpolation='none')
+            self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale[self.ch],cmap=self.Cmap[self.ch],interpolation='none')
         else:
-            self.im = ax.imshow(self.X[self.z, ...]/self.scale,cmap=self.Cmap[self.ch], interpolation='none',vmax=self.vmax)
+            self.im = ax.imshow(self.X[self.z, ...]/self.scale[self.ch],cmap=self.Cmap[self.ch], interpolation='none',vmax=self.vmax)
         
         try:
             if self.ch != 4: 
@@ -76,16 +77,20 @@ class IndexTracker(object):
         elif event.key == 'a':
             self.ch = (self.ch - 1) % self.channels
         elif event.key == 's':
-            self.scale = min(self.scale + 0.1, 1.0)
+            self.scale[self.ch] = min(self.scale[self.ch] + 0.1, 1.0)
         elif event.key == 'w':
-            self.scale = max(self.scale - 0.1, 0.0001)
+            self.scale[self.ch] = max(self.scale[self.ch] - 0.1, 0.0001)
+        elif event.key == 'up':
+            self.z = (self.z + 1) % self.slices
+        elif event.key == 'down':
+            self.z = (self.z - 1) % self.slices
         self.update()
 
     def update(self):
         if len(self.dimensions) == 4: 
-            self.im.set_data(self.X[self.ch ,self.z, ...]/self.scale)
+            self.im.set_data(self.X[self.ch ,self.z, ...]/self.scale[self.ch])
         else:
-            self.im.set_data(self.X[self.z, ...]/self.scale)
+            self.im.set_data(self.X[self.z, ...]/self.scale[self.ch])
         self.ax.set_xlabel('slice %s' % self.z)
         self.im.set_cmap(self.Cmap[self.ch])
         

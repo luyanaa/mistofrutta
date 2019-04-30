@@ -63,20 +63,22 @@ class rectangle:
         self.Image = image
     
         # Print instructions for the user
-        print("\nINSTRUCTIONS TO DRAW THE RECTANGLE\n\n"+\
+        if self.multiple: print("Multiple rectangles. ")
+        print("Press h for instructions\n")
+        self.instructions = "\nINSTRUCTIONS TO DRAW THE RECTANGLE\n\n"+\
             "Click and drag the pointer.\n"+\
             "You can resize the rectangle dragging the markers at the "+\
             "corners, and move it dragging the marker at the center.\n"+\
             "You can delete the rectangle clicking anywhere on the image.\n"+\
-            "Once you're done, simply close the figure window.")    
+            "Once you're done, simply close the figure window."  
             
         # Print additional instructions in case multiple is true
         if self.multiple:
-            print("\nMULTIPLE RECTANGLES\n\n"+\
+            self.instructions += "\n\nMULTIPLE RECTANGLES\n\n"+\
                 "You can save multiple rectangles: add the drawn rectangle "+\
                 "pressing \"a\" and delete the last one pressing \"d\".\n" +\
                 "After you add a rectangle, you can proceed directly to draw "+\
-                "the next one.\n\n")
+                "the next one.\n\n"
         
         # Create the figure
         self.fig = plt.figure(1)
@@ -153,6 +155,8 @@ class rectangle:
             else:
                 print("You need to initialize the rectangle selector with" +\
                       "multiple=True to save multiple rectangles.")
+        elif event.key in ['H', 'h']:
+            print(self.instructions)
                 
 
         
@@ -201,11 +205,11 @@ class polygon:
         self.verts = []
     
         # Print instructions for the user
-        print("\nINSTRUCTIONS TO DRAW THE POLYGON\n\n"+\
-           "Select points in the figure by enclosing them within a polygon.\n"+
-           "Press the 'esc' key to start a new polygon.\n"+
-           "Try holding the 'shift' key to move all of the vertices.\n"+
-           "Try holding the 'ctrl' key to move a single vertex.")
+        self.instructions = "\nINSTRUCTIONS TO DRAW THE POLYGON\n\n"+\
+           "Select points in the figure by enclosing them within a polygon.\n"+\
+           "Press the 'esc' key to start a new polygon.\n"+\
+           "Try holding the 'shift' key to move all of the vertices.\n"+\
+           "Try holding the 'ctrl' key to move a single vertex."
         
         lineprops =dict(color='r', linestyle='-', linewidth=2, alpha=0.5)
         markerprops = dict(marker='o', markersize=7, mec='r', mfc='r', 
