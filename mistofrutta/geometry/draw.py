@@ -88,6 +88,7 @@ class rectangle:
         self.cmap = plt.cm.viridis
         cmaplist = [self.cmap(i) for i in range(self.cmap.N)]
         cmaplist[0] = (1.,0.,0.,1.)
+        cmaplist[-1] = (1.,0.5,0.,1.)
         self.cmap = matplotlib.colors.LinearSegmentedColormap.from_list('mcm',cmaplist, self.cmap.N)
         
         # Plot the image

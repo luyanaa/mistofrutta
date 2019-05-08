@@ -7,9 +7,9 @@ from matplotlib.colors import LinearSegmentedColormap
 class IndexTracker(object):
     def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap='', Overlay=[]):
         self.ax = ax
-        ax.set_title('Scroll to navigate in z\nA-D to change channel, W-S to change color scaling')
+        ax.set_title('Scroll/up-down to navigate in z\nA-D/left-right to change channel, W-S to change color scaling')
         
-        new_keys_set = {'a', 'd', 'w', 's', 'up', 'down'}
+        new_keys_set = {'a', 'd', 'w', 's', 'up', 'down','left','right'}
         for prop in plt.rcParams:
             if prop.startswith('keymap.'):
                 keys = plt.rcParams[prop]
@@ -37,6 +37,10 @@ class IndexTracker(object):
         self.channels = 1
         if len(self.dimensions) == 4: 
             self.channels = self.dimensions[-4]
+        if self.channels > self.ncolors:
+            for j in np.arange(self.channels-self.ncolors):
+                cmap = LinearSegmentedColormap.from_list('name', ['black','white'])
+                self.Cmap.append(cmap)
         
         self.OverlayData = Overlay
         
@@ -60,7 +64,7 @@ class IndexTracker(object):
             punti = self.OverlayData[self.z].T
             self.overlay, = ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
         except:
-            print("no overlay")
+            pass
         
         self.update()
 
@@ -72,9 +76,9 @@ class IndexTracker(object):
         self.update()
         
     def onkeypress(self, event):
-        if event.key == 'd':
+        if event.key == 'd' or event.key == 'right':
             self.ch = (self.ch + 1) % self.channels
-        elif event.key == 'a':
+        elif event.key == 'a' or event.key == 'left':
             self.ch = (self.ch - 1) % self.channels
         elif event.key == 's':
             self.scale[self.ch] = min(self.scale[self.ch] + 0.1, 1.0)
