@@ -50,13 +50,14 @@ class IndexTracker(object):
         self.ch = 0
         self.scale = np.ones(self.channels)
         self.maxX = np.max(self.X)
+        self.minX = np.min(self.X)
         self.vmax = self.maxX
         
         #Plot and initialize vmax
         if len(self.dimensions) == 4:
-            self.im = ax.imshow(self.X[self.ch, self.z, ...],cmap=self.Cmap[self.ch],interpolation='none',vmax=self.vmax) #/self.scale[self.ch]
+            self.im = ax.imshow(self.X[self.ch, self.z, ...],cmap=self.Cmap[self.ch],interpolation='none',vmin=self.minX,vmax=self.vmax) #/self.scale[self.ch]
         else:
-            self.im = ax.imshow(self.X[self.z, ...],cmap=self.Cmap[self.ch], interpolation='none',vmax=self.vmax) #/self.scale[self.ch]
+            self.im = ax.imshow(self.X[self.z, ...],cmap=self.Cmap[self.ch], interpolation='none',vmin=self.minX,vmax=self.vmax) #/self.scale[self.ch]
         
         try:
             if self.ch != 4: 
@@ -97,8 +98,9 @@ class IndexTracker(object):
             self.im.set_data(self.X[self.ch ,self.z, ...])#/self.scale[self.ch])
         else:
             self.im.set_data(self.X[self.z, ...])#/self.scale[self.ch])
-        norm = colors.Normalize(vmax=self.maxX*self.scale[self.ch])
-        self.im.set_norm(norm)
+        if self.maxX*self.scale[self.ch] > self.im.norm.vmin:
+            norm = colors.Normalize(vmin=self.im.norm.vmin, vmax=self.maxX*self.scale[self.ch])
+            self.im.set_norm(norm)
         self.ax.set_xlabel('slice ' + str(self.z) + "   channel "+str(self.ch))
         self.im.set_cmap(self.Cmap[self.ch])
         
