@@ -3,6 +3,7 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.colors as colors
 
 class IndexTracker(object):
     def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap='', Overlay=[]):
@@ -48,13 +49,14 @@ class IndexTracker(object):
         self.z = self.slices//2
         self.ch = 0
         self.scale = np.ones(self.channels)
-        self.vmax = np.max(self.X)
+        self.maxX = np.max(self.X)
+        self.vmax = self.maxX
         
         #Plot and initialize vmax
         if len(self.dimensions) == 4:
-            self.im = ax.imshow(self.X[self.ch, self.z, ...]/self.scale[self.ch],cmap=self.Cmap[self.ch],interpolation='none')
+            self.im = ax.imshow(self.X[self.ch, self.z, ...],cmap=self.Cmap[self.ch],interpolation='none',vmax=self.vmax) #/self.scale[self.ch]
         else:
-            self.im = ax.imshow(self.X[self.z, ...]/self.scale[self.ch],cmap=self.Cmap[self.ch], interpolation='none',vmax=self.vmax)
+            self.im = ax.imshow(self.X[self.z, ...],cmap=self.Cmap[self.ch], interpolation='none',vmax=self.vmax) #/self.scale[self.ch]
         
         try:
             if self.ch != 4: 
@@ -81,9 +83,9 @@ class IndexTracker(object):
         elif event.key == 'a' or event.key == 'left':
             self.ch = (self.ch - 1) % self.channels
         elif event.key == 's':
-            self.scale[self.ch] = min(self.scale[self.ch] + 0.1, 1.0)
+            self.scale[self.ch] = min(self.scale[self.ch]*1.3, 1.0)
         elif event.key == 'w':
-            self.scale[self.ch] = max(self.scale[self.ch] - 0.1, 0.0001)
+            self.scale[self.ch] = max(self.scale[self.ch]*0.7, 0.0001)
         elif event.key == 'up':
             self.z = (self.z + 1) % self.slices
         elif event.key == 'down':
@@ -92,10 +94,12 @@ class IndexTracker(object):
 
     def update(self):
         if len(self.dimensions) == 4: 
-            self.im.set_data(self.X[self.ch ,self.z, ...]/self.scale[self.ch])
+            self.im.set_data(self.X[self.ch ,self.z, ...])#/self.scale[self.ch])
         else:
-            self.im.set_data(self.X[self.z, ...]/self.scale[self.ch])
-        self.ax.set_xlabel('slice %s' % self.z)
+            self.im.set_data(self.X[self.z, ...])#/self.scale[self.ch])
+        norm = colors.Normalize(vmax=self.maxX*self.scale[self.ch])
+        self.im.set_norm(norm)
+        self.ax.set_xlabel('slice ' + str(self.z) + "   channel "+str(self.ch))
         self.im.set_cmap(self.Cmap[self.ch])
         
         try:
