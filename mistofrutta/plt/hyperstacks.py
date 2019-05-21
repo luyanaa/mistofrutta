@@ -4,11 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.colors as colors
+from PyQt5.QtCore import pyqtRemoveInputHook
 
 class IndexTracker(object):
     def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap='', Overlay=[]):
+        self.selectpointsmode = False
+        self.labeledPoints = {}
+        pyqtRemoveInputHook()
+        
         self.ax = ax
-        ax.set_title('Scroll/up-down to navigate in z\nA-D/left-right to change channel, W-S to change color scaling')
+        self.defaultTitle = 'Scroll/up-down to navigate in z\nA-D/left-right to change channel, W-S to change color scaling'
+        ax.set_title(self.defaultTitle)
         
         new_keys_set = {'a', 'd', 'w', 's', 'up', 'down','left','right'}
         for prop in plt.rcParams:
@@ -79,19 +85,42 @@ class IndexTracker(object):
         self.update()
         
     def onkeypress(self, event):
-        if event.key == 'd' or event.key == 'right':
-            self.ch = (self.ch + 1) % self.channels
-        elif event.key == 'a' or event.key == 'left':
-            self.ch = (self.ch - 1) % self.channels
-        elif event.key == 's':
-            self.scale[self.ch] = min(self.scale[self.ch]*1.3, 1.0)
-        elif event.key == 'w':
-            self.scale[self.ch] = max(self.scale[self.ch]*0.7, 0.0001)
-        elif event.key == 'up':
-            self.z = (self.z + 1) % self.slices
-        elif event.key == 'down':
-            self.z = (self.z - 1) % self.slices
+        if not self.selectpointsmode:
+            if event.key == 'd' or event.key == 'right':
+                self.ch = (self.ch + 1) % self.channels
+            elif event.key == 'a' or event.key == 'left':
+                self.ch = (self.ch - 1) % self.channels
+            elif event.key == 's':
+                self.scale[self.ch] = min(self.scale[self.ch]*1.3, 1.0)
+            elif event.key == 'w':
+                self.scale[self.ch] = max(self.scale[self.ch]*0.7, 0.0001)
+            elif event.key == 'up':
+                self.z = (self.z + 1) % self.slices
+            elif event.key == 'down':
+                self.z = (self.z - 1) % self.slices
+            elif event.key == 'ctrl+0':
+                self.im.norm.vmin = 0
+            elif event.key == 'ctrl+9':
+                self.im.norm.vmin = self.minX
+            elif event.key == 'ctrl+1':
+                self.im.norm.vmin = 100
+            elif event.key == 'ctrl+4':
+                self.im.norm.vmin = 400
+        
+        if event.key == 'ctrl+p':
+            self.selectpointsmode = not self.selectpointsmode
+            if self.selectpointsmode == True:
+                self.ax.set_title("Select points mode. Press ctrl+p to switch back to normal mode")
+            else:
+                self.ax.set_title(self.defaultTitle)
+            
         self.update()
+        
+    def onbuttonpress(self, event):
+        if self.selectpointsmode:
+            ix, iy = event.xdata, event.ydata
+            label = input("Enter label for ("+str(ix)+","+str(iy)+"):  ")
+            self.labeledPoints[label] = [ix, iy, self.z]
 
     def update(self):
         if len(self.dimensions) == 4: 
@@ -119,7 +148,7 @@ class IndexTracker(object):
         #self.im.axes.figure.canvas.draw()
 
 
-def hyperstack(A,cmap='',Overlay=[]):
+def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red','magenta'],Overlay=[],wait=False):
     '''
     Parameters
     ----------
@@ -133,13 +162,22 @@ def hyperstack(A,cmap='',Overlay=[]):
     Takes a hyperstack with shape [channel, z, x, y] or [z, x, y] and
     produces the GUI to navigate it.    
     '''
-    fig, ax = plt.subplots(1, 1)
-    tracker = IndexTracker(ax, A, cmap=cmap, Overlay=Overlay)
+    
+    if order=="zc": A = np.swapaxes(A,0,1)
+    #cfcn = plt.gcf().number
+    cfcn = 0
+    fig = plt.figure(cfcn+1)
+    ax = fig.add_subplot(111)
+    tracker = IndexTracker(ax, A, cmap=cmap, colors=colors, Overlay=Overlay)
     fig.canvas.mpl_connect('key_press_event', tracker.onkeypress)
     fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
-    plt.show()
-    fig.clear()
-    del tracker
+    fig.canvas.mpl_connect('button_press_event', tracker.onbuttonpress)
+    labeledPoints = tracker.labeledPoints
+    if wait==False:
+        plt.show()
+        fig.clear()
+        del tracker
+    return labeledPoints
  
 #import unmix as um
 #filename = "/home/francesco/tmp/unmixing/SU_180503/SU_180503_AKS153.3.iii_W2Z"
