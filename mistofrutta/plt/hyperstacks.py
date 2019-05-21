@@ -119,8 +119,9 @@ class IndexTracker(object):
     def onbuttonpress(self, event):
         if self.selectpointsmode:
             ix, iy = event.xdata, event.ydata
-            label = input("Enter label for ("+str(ix)+","+str(iy)+"):  ")
-            self.labeledPoints[label] = [ix, iy, self.z]
+            if ix != None and iy != None:
+                label = input("Enter label for ("+str(int(ix))+","+str(int(iy))+"):  ")
+                self.labeledPoints[label] = [self.ch, self.z, int(iy), int(ix)]
 
     def update(self):
         if len(self.dimensions) == 4: 
@@ -145,10 +146,9 @@ class IndexTracker(object):
             pass        
         
         self.im.axes.figure.canvas.draw()
-        #self.im.axes.figure.canvas.draw()
 
 
-def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red','magenta'],Overlay=[],wait=False):
+def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red','magenta'],Overlay=[],plotNow=True):
     '''
     Parameters
     ----------
@@ -164,25 +164,17 @@ def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red'
     '''
     
     if order=="zc": A = np.swapaxes(A,0,1)
-    #cfcn = plt.gcf().number
-    cfcn = 0
-    fig = plt.figure(cfcn+1)
+    # Check if current figure is empty, otherwise go to the next one
+    cfn = plt.gcf().number
+    if len(plt.gcf().axes) != 0: cfn += 1
+    
+    fig = plt.figure(cfn)
     ax = fig.add_subplot(111)
     tracker = IndexTracker(ax, A, cmap=cmap, colors=colors, Overlay=Overlay)
     fig.canvas.mpl_connect('key_press_event', tracker.onkeypress)
     fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
     fig.canvas.mpl_connect('button_press_event', tracker.onbuttonpress)
-    labeledPoints = tracker.labeledPoints
-    if wait==False:
+    if plotNow==True:
         plt.show()
-        fig.clear()
-        del tracker
-    return labeledPoints
- 
-#import unmix as um
-#filename = "/home/francesco/tmp/unmixing/SU_180503/SU_180503_AKS153.3.iii_W2Z"
-#Image, Brightfield = um.load_image(filename) # Indices are [z,channel,x,y]
-#Image = um.sort_image_leica(Image)
-#Image = np.swapaxes(Image, 0,1)
-#plot_hyperstack(Image)
-    
+        
+    return tracker   
