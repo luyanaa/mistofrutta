@@ -13,7 +13,10 @@ class IndexTracker(object):
         pyqtRemoveInputHook()
         
         self.ax = ax
-        self.defaultTitle = 'Scroll/up-down to navigate in z\nA-D/left-right to change channel, W-S to change color scaling'
+        self.defaultTitle = 'Scroll/up-down to navigate in z\nA-D/left-right to change channel, W-S to change color scaling \n\
+            Ctrl+P for point labeling \n Ctrl+0 minimum of colorscale to 0 (to clip negative values)\n\
+            Ctrl+9 minimum of colorscale to original \n Ctrl+1 minimum of colorscale to 100 (for raw images with no binning) \n\
+            Ctrl+4 minimum of colorscale to 400 (for raw images with 2x2 binning: whole brain imager, MCW)'
         ax.set_title(self.defaultTitle)
         
         new_keys_set = {'a', 'd', 'w', 's', 'up', 'down','left','right'}
