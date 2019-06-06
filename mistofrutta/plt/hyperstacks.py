@@ -12,12 +12,22 @@ class IndexTracker(object):
         self.labeledPoints = {}
         pyqtRemoveInputHook()
         
+        self.markpointsmode = False
+        self.markedPointsN = 0
+        
         self.ax = ax
-        self.defaultTitle = 'Scroll/up-down to navigate in z\nA-D/left-right to change channel, W-S to change color scaling \n\
-            Ctrl+P for point labeling \n Ctrl+0 minimum of colorscale to 0 (to clip negative values)\n\
-            Ctrl+9 minimum of colorscale to original \n Ctrl+1 minimum of colorscale to 100 (for raw images with no binning) \n\
-            Ctrl+4 minimum of colorscale to 400 (for raw images with 2x2 binning: whole brain imager, MCW)'
+        self.defaultTitle = "Press h for instructions"
         ax.set_title(self.defaultTitle)
+        
+        self.instructions = '\n**INSTRUCTIONS:\n'+\
+            'Scroll/up-down to navigate in z\n'+\
+            'A-D/left-right to change channel, W-S to change color scaling \n'+\
+            'Ctrl+p for point labeling \n'+\
+            'Ctrl+o for point marking (without labels)\n'+\
+            'Ctrl+0 minimum of colorscale to 0 (to clip negative values)\n'+\
+            'Ctrl+9 minimum of colorscale to original \n'+\
+            'Ctrl+1 minimum of colorscale to 100 (for raw images with no binning) \n'+\
+            'Ctrl+4 minimum of colorscale to 400 (for raw images with 2x2 binning: whole brain imager, MCW)'
         
         new_keys_set = {'a', 'd', 'w', 's', 'up', 'down','left','right'}
         for prop in plt.rcParams:
@@ -29,6 +39,7 @@ class IndexTracker(object):
         
         #Build colormaps
         self.Cmap = []
+        self.colors = colors
         if cmap=='':
             self.ncolors = len(colors)
             for q in np.arange(self.ncolors):
@@ -89,7 +100,9 @@ class IndexTracker(object):
         
     def onkeypress(self, event):
         if not self.selectpointsmode:
-            if event.key == 'd' or event.key == 'right':
+            if event.key == 'h':
+                print(self.instructions)
+            elif event.key == 'd' or event.key == 'right':
                 self.ch = (self.ch + 1) % self.channels
             elif event.key == 'a' or event.key == 'left':
                 self.ch = (self.ch - 1) % self.channels
@@ -109,11 +122,27 @@ class IndexTracker(object):
                 self.im.norm.vmin = 100
             elif event.key == 'ctrl+4':
                 self.im.norm.vmin = 400
+            elif event.key == 'ctrl+o':
+                self.markpointsmode = not self.markpointsmode
+                if self.markpointsmode == True:
+                    self.markpointsmodetitle = "Mark points mode. Press ctrl+o to switch back to normal mode.\nRight click to delete last point"
+                    self.ax.set_title(self.markpointsmodetitle)
+                    if len(self.OverlayData) == 0:
+                        for z in np.arange(self.slices):
+                            self.OverlayData.append(np.array([[0.0,0.0]]))
+                    if self.colors[self.ch] != 'r': 
+                        goodcolor='r'
+                    else:
+                        goodcolor='g'
+                    punti = self.OverlayData[self.z].T
+                    self.overlay, = self.ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
+                else:
+                    self.ax.set_title(self.defaultTitle)
         
         if event.key == 'ctrl+p':
             self.selectpointsmode = not self.selectpointsmode
             if self.selectpointsmode == True:
-                self.ax.set_title("Select points mode. Press ctrl+p to switch back to normal mode")
+                self.ax.set_title("Select points mode. Press ctrl+p to switch back to normal mode.")
             else:
                 self.ax.set_title(self.defaultTitle)
             
@@ -125,6 +154,17 @@ class IndexTracker(object):
             if ix != None and iy != None:
                 label = input("Enter label for ("+str(int(ix))+","+str(int(iy))+"):  ")
                 self.labeledPoints[label] = [self.ch, self.z, int(iy), int(ix)]
+        
+        elif self.markpointsmode:
+            ix, iy = event.xdata, event.ydata
+            if ix != None and iy != None and event.button == 1:
+                self.OverlayData[self.z] = np.append(self.OverlayData[self.z],np.array([[ix,iy]]),axis=0)
+                self.markedPointsN += 1
+            elif event.button == 3 and len(self.OverlayData[self.z]) > 1:
+                self.markedPointsN -= 1
+                self.OverlayData[self.z] = np.delete(self.OverlayData[self.z],-1,axis=0)
+            self.ax.set_title(self.markpointsmodetitle+"\nMarked points in this plane: "+str(len(self.OverlayData[self.z])-1)+"\nMarked points in the stack: "+str(self.markedPointsN))
+            self.update()
 
     def update(self):
         if len(self.dimensions) == 4: 
@@ -138,13 +178,14 @@ class IndexTracker(object):
         self.im.set_cmap(self.Cmap[self.ch])
         
         try:
-            if self.ch != 4: 
+            if self.colors[self.ch] != 'red' and self.colors[self.ch] != 'magenta': 
                 goodcolor='r'
             else:
                 goodcolor='g'
             punti = self.OverlayData[self.z].T
             self.overlay.set_xdata(punti[0])
             self.overlay.set_ydata(punti[1])
+            self.overlay.set_color(goodcolor)
         except:
             pass        
         

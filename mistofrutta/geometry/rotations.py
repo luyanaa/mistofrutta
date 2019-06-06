@@ -75,6 +75,7 @@ def rotate_3D_image(A, theta, ux, uy, uz, x0=0.0, y0=0.0, z0=0.0):
     XX = XX.reshape(nx*ny*nz)
     YY = YY.reshape(nx*ny*nz)
     ZZ = ZZ.reshape(nx*ny*nz)
+    
     XYZ = np.array([XX,YY,ZZ])
     
     interpolating_function = RegularGridInterpolator((X,Y,Z), A, 
