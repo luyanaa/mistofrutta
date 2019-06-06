@@ -125,8 +125,6 @@ class IndexTracker(object):
             elif event.key == 'ctrl+o':
                 self.markpointsmode = not self.markpointsmode
                 if self.markpointsmode == True:
-                    self.markpointsmodetitle = "Mark points mode. Press ctrl+o to switch back to normal mode.\nRight click to delete last point"
-                    self.ax.set_title(self.markpointsmodetitle)
                     if len(self.OverlayData) == 0:
                         for z in np.arange(self.slices):
                             self.OverlayData.append(np.array([[0.0,0.0]]))
@@ -135,7 +133,10 @@ class IndexTracker(object):
                     else:
                         goodcolor='g'
                     punti = self.OverlayData[self.z].T
-                    self.overlay, = self.ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
+                    if not hasattr(self,'overlay'):
+                        self.overlay, = self.ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
+                    self.markpointsmodetitle = "Mark points mode. Press ctrl+o to switch back to normal mode.\nRight click to delete last point"
+                    self.ax.set_title(self.markpointsmodetitle+"\nMarked points in this plane: "+str(len(self.OverlayData[self.z])-1)+"\nMarked points in the stack: "+str(self.markedPointsN))
                 else:
                     self.ax.set_title(self.defaultTitle)
         
