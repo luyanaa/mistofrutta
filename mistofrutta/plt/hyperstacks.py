@@ -191,6 +191,12 @@ class IndexTracker(object):
             pass        
         
         self.im.axes.figure.canvas.draw()
+        
+    def get_markedPoints(self):
+        markedPoints = []
+        for i in np.arange(self.slices):
+            markedPoints.append(self.OverlayData[i][1:])
+        return markedPoints
 
 
 def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red','magenta'],Overlay=[],plotNow=True):
