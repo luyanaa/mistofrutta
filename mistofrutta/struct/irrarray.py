@@ -14,6 +14,10 @@ class irrarray(np.ndarray):
     strideNames. Block i of type p can be retrieved with A(p=i), and
     A(p=i,q=j) returns a list equivalent to [A(p=i),A(q=j)].
     
+    By passing a list (or array) of indices instead of a single index, you will
+    get a list of the blocks you specified. For example,
+    A(p=np.arange(0,3)) is equivalent to [A(p=0),A(p=1),A(p=2)].
+    
     This class was originally written to deal with sets of points in 3D space,
     unevenly distributed in different blocks (volumes). There are some names 
     that are reserved and when passed as argument to A(name=i) make the call 
@@ -52,7 +56,7 @@ class irrarray(np.ndarray):
         self.upToIndex = getattr(obj, 'upToIndex', {})
         
     def __array_wrap__(self, out_arr, context=None):
-        return repr(out_arr)
+        return out_arr
         
     def __call__(self, k=None, **kwargs):
         if k!=None:
@@ -62,15 +66,26 @@ class irrarray(np.ndarray):
         
         tbReturned = []
         for key in kwargs:
+            try:
+                len(kwargs[key])
+                K = kwargs[key]
+            except:
+                K = [kwargs[key]]
+            # Reserved names for conditions on columns
             if key in self.columnNames:
                 columnIndex = self.columnNames.index(key)
-                k = kwargs[key]
-                tbReturned.append(self[np.where(self[:,columnIndex]==k)])
+                # This is the value we're looking for in the column
+                # It could be a list/array or a single scalar. Make it a numpy
+                # array so that we're good in any case
+                for k in K:
+                    tmp = self[np.where(self[:,columnIndex]==k)]
+                    if len(tmp)>0: tmp=tmp[0]
+                    tbReturned.append(tmp)
             else:
-                k = kwargs[key]
-                i0 = self.upToIndex[key][k]
-                i1 = self.upToIndex[key][k+1]
-                tbReturned.append(self[i0:i1])
+                for k in K:
+                    i0 = self.upToIndex[key][k]
+                    i1 = self.upToIndex[key][k+1]
+                    tbReturned.append(self[i0:i1])
         
         if len(tbReturned)==1: tbReturned=tbReturned[0]
         return tbReturned
