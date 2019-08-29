@@ -22,7 +22,7 @@ class irrarray(np.ndarray):
     unevenly distributed in different blocks (volumes). There are some names 
     that are reserved and when passed as argument to A(name=i) make the call 
     behave differently than when using strideNames. By default, these names are 
-    z,y,x. A(z=i) returns A[np.where(A[:,column]==i], where column is 0,1,2 for 
+    z,y,x. A(z=i) returns A[np.where(A[:,column]==i)], where column is 0,1,2 for 
     z,y,x respectively. Again, this is just a shorthand notation for it.
     You can change the column reserved names via the parameter columnNames.
     '''
@@ -46,6 +46,7 @@ class irrarray(np.ndarray):
                        to the columns 0, 1, and 2, respectively. To avoid this \
                        pass an empty list as columnNames.")
             else:
+                # Compute limits of blocks from strides
                 obj.upToIndex[name] = np.zeros(len(irrStrides[i])+1,dtype=int)
                 obj.upToIndex[name][1:] = np.cumsum(irrStrides[i])
         return obj
@@ -54,38 +55,58 @@ class irrarray(np.ndarray):
         if obj is None: return
         self.columnNames = getattr(obj, 'columnNames', ["z","y","x"])
         self.upToIndex = getattr(obj, 'upToIndex', {})
+        self.coord = self.view(np.ndarray) #useful for __dict__ serialization
         
     def __array_wrap__(self, out_arr, context=None):
         return out_arr
+
+    def __call__(self, k=None, dtype="same", **kwargs):
+        '''
+        If dtype!="same", copies will be returned!
+        '''
         
-    def __call__(self, k=None, **kwargs):
         if k!=None:
+            # Single irregular stride with default name k
             i0 = self.upToIndex["k"][k]
             i1 = self.upToIndex["k"][k+1]
-            return self[i0:i1]
+            if dtype=="same":
+                return self[i0:i1]
+            else:
+                return self[i0:i1].astype(dtype)
         
         tbReturned = []
         for key in kwargs:
-            try:
-                len(kwargs[key])
-                K = kwargs[key]
-            except:
-                K = [kwargs[key]]
-            # Reserved names for conditions on columns
-            if key in self.columnNames:
-                columnIndex = self.columnNames.index(key)
-                # This is the value we're looking for in the column
-                # It could be a list/array or a single scalar. Make it a numpy
-                # array so that we're good in any case
-                for k in K:
-                    tmp = self[np.where(self[:,columnIndex]==k)]
-                    if len(tmp)>0: tmp=tmp[0]
-                    tbReturned.append(tmp)
-            else:
-                for k in K:
-                    i0 = self.upToIndex[key][k]
-                    i1 = self.upToIndex[key][k+1]
-                    tbReturned.append(self[i0:i1])
+            if key!="dtype":
+                # If it's not a list, make it one.
+                try:
+                    len(kwargs[key])
+                    K = kwargs[key]
+                    inputlist = True
+                except:
+                    K = [kwargs[key]]
+                    inputlist = False
+                
+                if key in self.columnNames:
+                    # Reserved names for conditions on columns
+                    
+                    columnIndex = self.columnNames.index(key)
+                    # This is the value we're looking for in the column
+                    # It could be a list/array or a single scalar. Make it a 
+                    # numpy array so that we're good in any case.
+                    for k in K:
+                        tmp = self[np.where(self[:,columnIndex]==k)]
+                        if len(tmp)>0: tmp=tmp[0]
+                        if dtype!="same": tmp=tmp.astype(tmp)
+                        tbReturned.append(tmp)
+                else:
+                    # Irregular stride
+                    
+                    for k in K:
+                        i0 = self.upToIndex[key][k]
+                        i1 = self.upToIndex[key][k+1]
+                        tmp = self[i0:i1]
+                        if dtype!="same": tmp = tmp.astype(dtype)
+                        tbReturned.append(tmp)
         
-        if len(tbReturned)==1: tbReturned=tbReturned[0]
+        if len(tbReturned)==1 and not inputlist: tbReturned=tbReturned[0]
         return tbReturned
