@@ -6,8 +6,8 @@ import numpy
 
 approx_c = Extension('mistofrutta.approx._approx_c',
                     sources = ['mistofrutta/approx/_approx_c.cpp'],
-                    include_dirs = [numpy.get_include()],
-                    extra_compile_args=['-O3'])
+                    include_dirs = ['/home/francesco/.local/lib/boost_1_71_0','/home/francesco/.local/lib/eigen',numpy.get_include()],
+                    extra_compile_args=['-ffast-math','-I/opt/boost_1_48_0/include','-Ofast'])
 
 setup(name='mistofrutta',
       version='1.0',
