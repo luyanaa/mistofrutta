@@ -59,7 +59,7 @@ class irrarray(np.ndarray):
         
     def __array_wrap__(self, out_arr, context=None):
         return out_arr
-
+    
     def __call__(self, k=None, dtype="same", **kwargs):
         '''
         If dtype!="same", copies will be returned!
