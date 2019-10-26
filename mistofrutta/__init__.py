@@ -1,6 +1,7 @@
-__all__ = ['plt, geometry','struct','approx']
+__all__ = ['plt, geometry','struct','approx','ft']
 
 from . import plt
 from . import geometry
 from . import struct
 from . import approx
+from . import ft
