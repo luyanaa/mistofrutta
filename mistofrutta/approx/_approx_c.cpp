@@ -1,4 +1,4 @@
-//#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_1_9_API_VERSION
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include <iostream>
@@ -93,8 +93,8 @@ static PyObject *fastexp(PyObject *self, PyObject *args) {
     
     if(!PyArg_ParseTuple(args, "OiOi", &X_o, &sizeX, &out_o, &order)) return NULL;
     
-    PyObject *X_a = PyArray_FROM_OTF(X_o, NPY_FLOAT64, NPY_IN_ARRAY);
-    PyObject *out_a = PyArray_FROM_OTF(out_o, NPY_FLOAT64, NPY_IN_ARRAY);
+    PyArrayObject *X_a = (PyArrayObject*) PyArray_FROM_OT(X_o, NPY_FLOAT64);
+    PyArrayObject *out_a = (PyArrayObject*) PyArray_FROM_OT(out_o, NPY_FLOAT64);
         
     // Check that the above conversion worked, otherwise decrease the reference
     // count and return NULL.                                 
@@ -145,13 +145,13 @@ static PyObject *fastexp(PyObject *self, PyObject *args) {
 
 static PyObject *fastlog(PyObject *self, PyObject *args) {
 
-    int sizeX, order;
+    int sizeX;//, order;
     PyObject *X_o, *out_o;
     
     if(!PyArg_ParseTuple(args, "OiO", &X_o, &sizeX, &out_o)) return NULL;
     
-    PyObject *X_a = PyArray_FROM_OTF(X_o, NPY_FLOAT64, NPY_IN_ARRAY);
-    PyObject *out_a = PyArray_FROM_OTF(out_o, NPY_FLOAT64, NPY_IN_ARRAY);
+    PyArrayObject *X_a = (PyArrayObject*) PyArray_FROM_OT(X_o, NPY_FLOAT64);
+    PyArrayObject *out_a = (PyArrayObject*) PyArray_FROM_OT(out_o, NPY_FLOAT64);
         
     // Check that the above conversion worked, otherwise decrease the reference
     // count and return NULL.                                 
@@ -172,7 +172,7 @@ static PyObject *fastlog(PyObject *self, PyObject *args) {
     //////////////////////////////////
     
     double xi;
-    double y;
+    //double y;
     // see http://codingforspeed.com/using-faster-exponential-approximation
     for(int i=0;i<sizeX;i++) {
         xi = X[i];
@@ -203,8 +203,8 @@ static PyObject *gamma_orig(PyObject *self, PyObject *args) {
     
     if(!PyArg_ParseTuple(args, "OiO", &X_o, &sizeX, &out_o)) return NULL;
     
-    PyObject *X_a = PyArray_FROM_OTF(X_o, NPY_FLOAT64, NPY_IN_ARRAY);
-    PyObject *out_a = PyArray_FROM_OTF(out_o, NPY_FLOAT64, NPY_IN_ARRAY);
+    PyArrayObject *X_a = (PyArrayObject*) PyArray_FROM_OT(X_o, NPY_FLOAT64);
+    PyArrayObject *out_a = (PyArrayObject*) PyArray_FROM_OT(out_o, NPY_FLOAT64);
         
     // Check that the above conversion worked, otherwise decrease the reference
     // count and return NULL.                                 
@@ -253,8 +253,8 @@ static PyObject *digamma(PyObject *self, PyObject *args) {
     
     if(!PyArg_ParseTuple(args, "OiOii", &X_o, &sizeX, &out_o, &order, &order2)) return NULL;
     
-    PyObject *X_a = PyArray_FROM_OTF(X_o, NPY_FLOAT64, NPY_IN_ARRAY);
-    PyObject *out_a = PyArray_FROM_OTF(out_o, NPY_FLOAT64, NPY_IN_ARRAY);
+    PyArrayObject *X_a = (PyArrayObject*) PyArray_FROM_OT(X_o, NPY_FLOAT64);
+    PyArrayObject *out_a = (PyArrayObject*) PyArray_FROM_OT(out_o, NPY_FLOAT64);
         
     // Check that the above conversion worked, otherwise decrease the reference
     // count and return NULL.                                 
@@ -276,10 +276,10 @@ static PyObject *digamma(PyObject *self, PyObject *args) {
     
     
     Py_BEGIN_ALLOW_THREADS
-    double coeff[15] = {-0.5,-1./12.,0.0,1./120.,0.0,-1./256.,0.0,1./240.,0.0,-5./660.,0.0,691./32760.,0.0,-1./12.};
+    //double coeff[15] = {-0.5,-1./12.,0.0,1./120.,0.0,-1./256.,0.0,1./240.,0.0,-5./660.,0.0,691./32760.,0.0,-1./12.};
     
     double xi;
-    double xporder2;
+    //double xporder2;
     
     for(int i=0;i<sizeX;i++) {
         xi = X[i];
@@ -325,8 +325,8 @@ static PyObject *trigamma(PyObject *self, PyObject *args) {
     
     if(!PyArg_ParseTuple(args, "OiOi", &X_o, &sizeX, &out_o, &order)) return NULL;
     
-    PyObject *X_a = PyArray_FROM_OTF(X_o, NPY_FLOAT64, NPY_IN_ARRAY);
-    PyObject *out_a = PyArray_FROM_OTF(out_o, NPY_FLOAT64, NPY_IN_ARRAY);
+    PyArrayObject *X_a = (PyArrayObject*) PyArray_FROM_OT(X_o, NPY_FLOAT64);
+    PyArrayObject *out_a = (PyArrayObject*) PyArray_FROM_OT(out_o, NPY_FLOAT64);
         
     // Check that the above conversion worked, otherwise decrease the reference
     // count and return NULL.                                 
