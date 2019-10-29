@@ -5,3 +5,4 @@ from . import geometry
 from . import struct
 from . import approx
 from . import ft
+from .convolve._convolve import convolve
