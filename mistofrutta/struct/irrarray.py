@@ -76,7 +76,7 @@ class irrarray(np.ndarray):
         
         tbReturned = []
         for key in kwargs:
-            if key!="dtype":
+            if key!="dtype" and key!="ordering":
                 # If it's not a list, make it one.
                 try:
                     len(kwargs[key])
@@ -94,7 +94,7 @@ class irrarray(np.ndarray):
                     # It could be a list/array or a single scalar. Make it a 
                     # numpy array so that we're good in any case.
                     for k in K:
-                        tmp = self[np.where(self[:,columnIndex]==k)]
+                        tmp = self[np.where(self[:,columnIndex]==k)]            
                         if len(tmp)>0: tmp=tmp[0]
                         if dtype!="same": tmp=tmp.astype(tmp)
                         tbReturned.append(tmp)

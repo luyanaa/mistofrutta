@@ -84,7 +84,10 @@ class IndexTracker(object):
                 goodcolor='r'
             else:
                 goodcolor='g'
-            punti = self.OverlayData[self.z].T
+            if(isinstance(self.OverlayData[0],list)):
+                punti = self.OverlayData[self.ch][self.z].T
+            else:
+                punti = self.OverlayData[self.z].T
             self.overlay, = ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
         except:
             pass
@@ -183,7 +186,10 @@ class IndexTracker(object):
                 goodcolor='r'
             else:
                 goodcolor='g'
-            punti = self.OverlayData[self.z].T
+            if(isinstance(self.OverlayData[0],list)):
+                punti = self.OverlayData[self.ch][self.z].T
+            else:
+                punti = self.OverlayData[self.z].T
             self.overlay.set_xdata(punti[0])
             self.overlay.set_ydata(punti[1])
             self.overlay.set_color(goodcolor)

@@ -65,7 +65,7 @@ std::complex<double> ft_cubic(std::complex<double>* h, int32_t M, double a, doub
     
     std::complex<double> I=0.0+0.0*1i, arg=0.0+0.0*1i;
     for(int j=0;j<M;j++){
-        arg = 0.0+1i*j*th;
+        arg = 0.0+1i*( (double) j)*th;
         I += h[j]*exp(arg);
     }
     
