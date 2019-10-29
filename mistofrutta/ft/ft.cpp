@@ -14,6 +14,9 @@ std::complex<double> ft_cubic(std::complex<double>* h, int32_t M, double a, doub
     double W;
     std::complex<double> a0,a1,a2,a3;
     
+    // Flip the variable so that this is the direct Fourier transform
+    r = -r;
+    
     //s = variable to be integrated (t for the Fourier transform)
     //r = external variable (omega for the Fourier transform)
     
