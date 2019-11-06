@@ -32,9 +32,16 @@ _convolve = Extension('mistofrutta.convolve._convolve',
                     sources = ['mistofrutta/convolve/_convolve.cpp','mistofrutta/convolve/convolve.cpp'],
                     include_dirs = [],
                     extra_compile_args=['-ffast-math','-Ofast'])
+                    
+# Get git commit info to build version number/tag
+repo = git.Repo('.git')
+git_hash = repo.head.object.hexsha
+git_url = repo.remotes.origin.url
+v = repo.git.describe(always=True)
+if repo.is_dirty(): v += ".dirty"
 
 setup(name='mistofrutta',
-      version='1.0',
+      version=v,
       description='Collection of random utilities',
       author='Francesco Randi',
       author_email='francesco.randi@gmail.com',
