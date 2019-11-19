@@ -6,12 +6,16 @@
 #include "convolve.hpp"
 
 static PyObject *convolve(PyObject *self, PyObject *args);
+static PyObject *convolve1(PyObject *self, PyObject *args);
+static PyObject *nonlinconv(PyObject *self, PyObject *args);
 
 /////// Python-module-related functions and tables
 
 // The module's method table
 static PyMethodDef _convolveMethods[] = {
     {"convolve", convolve, METH_VARARGS, ""},
+    {"convolve1", convolve1, METH_VARARGS, ""},
+    {"nonlinconv", nonlinconv, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL}
 };
 
@@ -32,6 +36,68 @@ PyMODINIT_FUNC PyInit__convolve(void) {
     
     
 //////// The actual functions of the modules
+
+static PyObject *convolve1(PyObject *self, PyObject *args) {
+
+    int32_t M,N;
+    double delta;
+    PyObject *A_o, *B_o;
+    
+    if(!PyArg_ParseTuple(args, "OOid", 
+                &A_o, &B_o, &N, &delta)) 
+                return NULL;
+    
+    // Get the PyArrayObjects. This will also cast the datatypes if needed.
+    PyArrayObject *A_a = (PyArrayObject*) PyArray_FROM_OT(A_o, NPY_FLOAT64);
+    PyArrayObject *B_a = (PyArrayObject*) PyArray_FROM_OT(B_o, NPY_FLOAT64);
+    
+    // Extract the lenghts of A, as its shape[0].
+    M = *(PyArray_SHAPE(A_a));
+    if(N>M){
+        Py_XDECREF(A_a);
+        Py_XDECREF(B_a);
+        Py_XINCREF(Py_None); 
+        return Py_None;
+    }
+    
+    // Check that the above conversion worked, otherwise decrease the reference
+    // count and return NULL.                                 
+    if (A_a == NULL || B_a == NULL) {
+        Py_XDECREF(A_a);
+        Py_XDECREF(B_a);
+        return NULL;
+    }
+    
+    // Get pointers to the data in the numpy arrays.
+    double *A = (double*)PyArray_DATA(A_a);
+    double *B = (double*)PyArray_DATA(B_a);
+    
+    //////////////////////////////////
+    //////////////////////////////////
+    // Actual C code
+    //////////////////////////////////
+    //////////////////////////////////
+    
+    double result = 0.0;
+    result = _convolve1(A,B,N,delta);
+          
+    //////////////////////////////////
+    //////////////////////////////////
+    // End of C code
+    //////////////////////////////////
+    //////////////////////////////////
+    
+    
+    // Decrease the reference count for the python objects that have been 
+    // declared in this function.
+    Py_XDECREF(A_a);
+    Py_XDECREF(B_a);
+    
+    PyObject *result_o = Py_BuildValue("d",result);
+    
+    // Return the computed Fourier integral
+    return result_o;
+}
 
 static PyObject *convolve(PyObject *self, PyObject *args) {
 
@@ -93,4 +159,58 @@ static PyObject *convolve(PyObject *self, PyObject *args) {
     
     // Return the computed Fourier integral
     return out_o;
+}
+
+static PyObject *nonlinconv(PyObject *self, PyObject *args) {
+
+    int32_t M;
+    double coeff,delta;
+    PyObject *A_o, *B_o;
+    
+    if(!PyArg_ParseTuple(args, "OOdd", 
+                &A_o, &B_o, &coeff, &delta)) 
+                return NULL;
+    
+    // Get the PyArrayObjects. This will also cast the datatypes if needed.
+    PyArrayObject *A_a = (PyArrayObject*) PyArray_FROM_OT(A_o, NPY_FLOAT64);
+    PyArrayObject *B_a = (PyArrayObject*) PyArray_FROM_OT(B_o, NPY_FLOAT64);
+    
+    // Extract the lenghts of h and R, as their shape[0].
+    M = *(PyArray_SHAPE(A_a));
+    
+    // Check that the above conversion worked, otherwise decrease the reference
+    // count and return NULL.                                 
+    if (A_a == NULL || B_a == NULL) {
+        Py_XDECREF(A_a);
+        Py_XDECREF(B_a);
+        return NULL;
+    }
+    
+    // Get pointers to the data in the numpy arrays.
+    double *A = (double*)PyArray_DATA(A_a);
+    double *B = (double*)PyArray_DATA(B_a);
+    
+    //////////////////////////////////
+    //////////////////////////////////
+    // Actual C code
+    //////////////////////////////////
+    //////////////////////////////////
+    
+    nonlinconv(A,B,M,coeff,delta);
+          
+    //////////////////////////////////
+    //////////////////////////////////
+    // End of C code
+    //////////////////////////////////
+    //////////////////////////////////
+    
+    
+    // Decrease the reference count for the python objects that have been 
+    // declared in this function.
+    Py_XDECREF(A_a);
+    Py_XDECREF(B_a);
+    
+    // Return the computed Fourier integral
+    Py_XINCREF(Py_None);
+    return Py_None;
 }
