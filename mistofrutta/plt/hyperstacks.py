@@ -7,7 +7,7 @@ import matplotlib.colors as colors
 from PyQt5.QtCore import pyqtRemoveInputHook
 
 class IndexTracker(object):
-    def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap='', Overlay=[]):
+    def __init__(self, ax, X, colors=['blue','cyan','green','orange','red','magenta'], cmap='', Overlay=[], OverlayLabels=[]):
         self.selectpointsmode = False
         self.labeledPoints = {}
         pyqtRemoveInputHook()
@@ -64,6 +64,10 @@ class IndexTracker(object):
                 self.Cmap.append(cmap)
         
         self.OverlayData = Overlay
+        self.OverlayLabels = OverlayLabels
+        self.OverlayLabelDx = int(X.shape[-1]/100)
+        self.OverlayLabelDy = int(X.shape[-2]/100)
+        self.OverlayTxtObj = []
         
         #Initialize z position and channel for first plot
         self.z = self.slices//2
@@ -80,7 +84,7 @@ class IndexTracker(object):
             self.im = ax.imshow(self.X[self.z, ...],cmap=self.Cmap[self.ch], interpolation='none',vmin=self.minX,vmax=self.vmax) #/self.scale[self.ch]
         
         try:
-            if self.ch != 4: 
+            if self.ch != 4: #TODO check self.colors instead of the number of the channel
                 goodcolor='r'
             else:
                 goodcolor='g'
@@ -88,7 +92,11 @@ class IndexTracker(object):
                 punti = self.OverlayData[self.ch][self.z].T
             else:
                 punti = self.OverlayData[self.z].T
+                labs = self.OverlayLabels[self.z]
             self.overlay, = ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
+            for i in np.arange(len(labs)):
+                ann = self.ax.annotate(labs[i], xy=(punti[0][i],punti[1][i]), xytext=(punti[0][i]+self.OverlayLabelDx,punti[1][i]+self.OverlayLabelDy), color=goodcolor)
+                self.OverlayTxtObj.append(ann)
         except:
             pass
         
@@ -190,9 +198,16 @@ class IndexTracker(object):
                 punti = self.OverlayData[self.ch][self.z].T
             else:
                 punti = self.OverlayData[self.z].T
+                labs = self.OverlayLabels[self.z] #TODO implement for different channels
             self.overlay.set_xdata(punti[0])
             self.overlay.set_ydata(punti[1])
             self.overlay.set_color(goodcolor)
+            for t in self.OverlayTxtObj:
+                t.remove()
+            self.OverlayTxtObj = []
+            for i in np.arange(len(labs)):
+                ann = self.ax.annotate(labs[i], xy=(punti[0][i],punti[1][i]), xytext=(punti[0][i]+self.OverlayLabelDx,punti[1][i]+self.OverlayLabelDy), color=goodcolor)
+                self.OverlayTxtObj.append(ann)
         except:
             pass        
         
@@ -205,7 +220,7 @@ class IndexTracker(object):
         return markedPoints
 
 
-def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red','magenta'],Overlay=[],plotNow=True):
+def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red','magenta'],Overlay=[],OverlayLabels=[],plotNow=True):
     '''
     Parameters
     ----------
@@ -227,7 +242,7 @@ def hyperstack(A,order="cz",cmap='',colors=['blue','cyan','green','orange','red'
     
     fig = plt.figure(cfn)
     ax = fig.add_subplot(111)
-    tracker = IndexTracker(ax, A, cmap=cmap, colors=colors, Overlay=Overlay)
+    tracker = IndexTracker(ax, A, cmap=cmap, colors=colors, Overlay=Overlay, OverlayLabels=OverlayLabels)
     fig.canvas.mpl_connect('key_press_event', tracker.onkeypress)
     fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
     fig.canvas.mpl_connect('button_press_event', tracker.onbuttonpress)
