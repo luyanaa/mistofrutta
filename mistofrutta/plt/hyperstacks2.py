@@ -50,9 +50,9 @@ def hyperstack_live_min_interface(data, stop, out, refresh_time=0.1):
             plt.close(iperpila.im.axes.figure)
             break
         iperpila.update(live=True)
-        out[0:3] = iperpila.current_point
+        out[0:4] = iperpila.current_point
     
-    return iperpila
+    return 1.0
 
 def make_colormap(colors):
     '''Makes list of matplotlib color maps from black to colors.
@@ -151,7 +151,7 @@ class Hyperstack():
     mode_label = False
     
     # Data
-    current_point = np.zeros(3)
+    current_point = np.zeros(4)
     
     # Utilites
     has_been_closed = False
@@ -390,8 +390,9 @@ class Hyperstack():
         ix, iy = event.xdata, event.ydata
         if ix != None and iy != None:
             self.current_point[0] = self.z
-            self.current_point[1] = iy
-            self.current_point[2] = ix
+            self.current_point[1] = self.ch
+            self.current_point[2] = iy
+            self.current_point[3] = ix
             
     def onclose(self,event):
         self.has_been_closed = True

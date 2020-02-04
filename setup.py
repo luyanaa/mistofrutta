@@ -2,7 +2,7 @@
 
 from distutils.core import setup, Extension
 from distutils.command.build_ext import build_ext
-import git
+import os
 
 class CustomBuildExtCommand(build_ext):
     """build_ext command for use when numpy headers are needed."""
@@ -32,7 +32,17 @@ _convolve = Extension('mistofrutta.convolve._convolve',
                     sources = ['mistofrutta/convolve/_convolve.cpp','mistofrutta/convolve/convolve.cpp'],
                     include_dirs = [],
                     extra_compile_args=['-ffast-math','-Ofast'])
-                    
+					
+
+if os.name == "nt":
+	os.environ['GIT_PYTHON_GIT_EXECUTABLE'] = 'C:\Program Files\Git\cmd\git.exe'
+
+	import numpy
+	approx_c.include_dirs.append(numpy.get_include())
+	_ft.include_dirs.append(numpy.get_include())
+	_convolve.include_dirs.append(numpy.get_include())
+
+import git
 # Get git commit info to build version number/tag
 repo = git.Repo('.git')
 git_hash = repo.head.object.hexsha

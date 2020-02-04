@@ -1,4 +1,4 @@
-__all__ = ['hyperstacks']
+__all__ = ['hyperstacks','hyperstacks2']
 
 from .hyperstacks import hyperstack
 from .hyperstacks2 import hyperstack as hyperstack2
