@@ -6,8 +6,52 @@ from PyQt5.QtCore import pyqtRemoveInputHook
 
 def hyperstack(data, color = None, cmap = None,
                overlay = None, overlay_labels = None, hyperparam = None,
-               refresh_time = 0.1, plot_now = True, live = False):
-    '''
+               plot_now = True, live = False):
+    '''Function to use the Hyperstack class. 
+    Parameters
+    ----------
+    data: numpy array
+        The default interpretation of the dimensions is [z, c, y, x]. (c is
+        channel). However, the initialization can accept also the following:
+        - [z,y,x]
+        - [c,y,x] with hyperparam set to "c"
+        - [y,x]
+    color: string or list of strings
+        List of matplotlib-recognizable colors to create the black-to-color
+        colormaps for the channels. The class is able to handle a number
+        of colors different from the number of channels. Default: None.
+    cmap: string list of strings
+        List of matplotlib colormaps for the channels. The number of cmap
+        can be different from the number of channels. Default: None. If 
+        both cmap and color are None, the class defaults to viridis.
+    overlay: irrarray
+        Irregular array with irregular stride "ch", with overlay(ch=c)[i]
+        giving z,y,x of the i-th overlay point in channel c. Default: None.
+    overlay_label: irrarray
+        Irregular array with the same structure as overlay, with
+        overlay(ch=c)[i] giving the label of the i-th overlay point in c.
+        Default: None
+    hyperparam: string
+        Specifier of the hyperparameters. Situation-dependent. 
+        Default: None.
+    plot_now: boolean
+        If True (and live is False), the plot is shown in blocking mode.
+        To use multiple hyperstacks, set plot_now to False (with live either
+        not set or set to False) and store the value returned by this function
+        to a variable, so that a reference to the Hyperstack instantiation is
+        retained. After creating the other Hyperstacks, call plt.show() in the
+        main scritp. Default: True.
+    live: boolean
+        If True, the plot is shown in non-blocking mode, so that the main script
+        will keep running and the plot can be used to visualize data that is
+        being updated live. To update the data, store the instance of the 
+        Hyperstack class returned by this function and call its method
+        update(live=True, refresh_time), where refresh_time is the time
+        matplotlib will pause while updating the plot.
+        
+    Returns
+    -------
+    Instance of the Hyperstack class.
     '''
     
     # Get number of next available figure           
@@ -21,7 +65,7 @@ def hyperstack(data, color = None, cmap = None,
     # Instantiate Hyperstack class
     iperpila = Hyperstack(ax, data, color = color, cmap = cmap, 
                  overlay = overlay, overlay_labels = overlay_labels, 
-                 hyperparam = hyperparam, refresh_time = 0.1)
+                 hyperparam = hyperparam)
     
     # Bind the figure to the interactions events
     fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
@@ -32,24 +76,50 @@ def hyperstack(data, color = None, cmap = None,
     # If no live mode has been requested and no plot_now, plot and block.
     if live == False and plot_now == True:
         plt.show()
-    else:
+    elif live == True:
         fig.show()
         
     return iperpila
     
 def hyperstack_live_min_interface(data, stop, out, refresh_time=0.1): 
+    '''Function to use the Hyperstack class in live mode with a minimal data
+    interface, e.g. when embedded in C\C++.
+    
+    Parameters
+    ----------
+    data: numpy array
+        The default interpretation of the dimensions is [z, c, y, x]. (c is
+        channel). However, the initialization can accept also the following:
+        - [z,y,x]
+        - [c,y,x] with hyperparam set to "c"
+        - [y,x]
+    stop: numpy array of floats
+        If stop[0]>0, the function stops and the hyperstack plot is closed.
+        It uses floats instead of booleans to be more easily compatible, e.g.
+        with DLL calls from LabView.
+    out: numpy array
+        Memory buffer to bring out results (e.g. the last selected point) to 
+        the calling process. See implementation for what data is brought out.
+    refresh_time: float
+        Time matplotlib will pause while updating the plot.
+    
+    Returns
+    -------
+    1.0
+    
+    '''
     #overlay, overlay_irrstrides
     # You'll have to add the overlay
     #overlay = mf.struct.irrarray(overlay_, irrStrides = [[3,17]], strideNames=["ch"])
 
-    iperpila = hyperstack(data,live=True,refresh_time=refresh_time)
+    iperpila = hyperstack(data,live=True)
 
     while True:
         if iperpila.has_been_closed: break
         if stop[0]>0: 
             plt.close(iperpila.im.axes.figure)
             break
-        iperpila.update(live=True)
+        iperpila.update(live=True,refresh_time=refresh_time)
         out[0:4] = iperpila.current_point
     
     return 1.0
@@ -157,9 +227,40 @@ class Hyperstack():
     has_been_closed = False
     
     def __init__(self, ax, data, color = None, cmap = None, 
-                 overlay = None, overlay_labels = None, hyperparam = None,
-                 refresh_time = 0.1):
-        '''Assumes data is [z,ch,y,x]
+                 overlay = None, overlay_labels = None, hyperparam = None):
+        '''Class for plotting the hyperstack-visualization of data.
+        Parameters
+        ----------
+        ax: matplotlib axis
+            Initialized matplotlib axis in which to imshow the data.
+        data: numpy array
+            The default interpretation of the dimensions is [z, c, y, x]. (c is
+            channel). However, the initialization can accept also the following:
+            - [z,y,x]
+            - [c,y,x] with hyperparam set to "c"
+            - [y,x]
+        color: string or list of strings
+            List of matplotlib-recognizable colors to create the black-to-color
+            colormaps for the channels. The class is able to handle a number
+            of colors different from the number of channels. Default: None.
+        cmap: string list of strings
+            List of matplotlib colormaps for the channels. The number of cmap
+            can be different from the number of channels. Default: None. If 
+            both cmap and color are None, the class defaults to viridis.
+        overlay: irrarray
+            Irregular array with irregular stride "ch", with overlay(ch=c)[i]
+            giving z,y,x of the i-th overlay point in channel c. Default: None.
+        overlay_label: irrarray
+            Irregular array with the same structure as overlay, with
+            overlay(ch=c)[i] giving the label of the i-th overlay point in c.
+            Default: None
+        hyperparam: string
+            Specifier of the hyperparameters. Situation-dependent. 
+            Default: None.
+        
+        Returns
+        -------
+        None.
         '''
         
         # Don't really remember what this was for.
@@ -167,9 +268,6 @@ class Hyperstack():
         
         self.ax = ax
         self.ax.set_title(self.def_title)
-        
-        # Live update
-        self.refresh_time = refresh_time
         
         # Prepare matplotlib to accept the new commands you set
         override_default_keys(self.new_keys_set)
@@ -272,7 +370,7 @@ class Hyperstack():
         
         self.update()
         
-    def update(self, live = False):
+    def update(self, live = False, refresh_time=0.1):
     
         #######
         # Image
@@ -334,7 +432,7 @@ class Hyperstack():
         self.im.axes.figure.canvas.draw()
         
         if live:
-            self.im.axes.figure.canvas.start_event_loop(self.refresh_time)
+            self.im.axes.figure.canvas.start_event_loop(refresh_time)
         
         
     def onscroll(self, event):
