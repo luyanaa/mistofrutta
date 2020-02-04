@@ -18,5 +18,6 @@ mistofrutta/geometry/draw.py
 mistofrutta/geometry/rotations.py
 mistofrutta/plt/__init__.py
 mistofrutta/plt/hyperstacks.py
+mistofrutta/plt/hyperstacks2.py
 mistofrutta/struct/__init__.py
 mistofrutta/struct/irrarray.py

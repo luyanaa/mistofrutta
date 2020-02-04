@@ -49,6 +49,10 @@ class irrarray(np.ndarray):
                 # Compute limits of blocks from strides
                 obj.upToIndex[name] = np.zeros(len(irrStrides[i])+1,dtype=int)
                 obj.upToIndex[name][1:] = np.cumsum(irrStrides[i])
+        
+        # Aliases
+        obj.first_index = obj.upToIndex
+        
         return obj
 
     def __array_finalize__(self, obj):
