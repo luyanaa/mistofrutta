@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.colors as colors
 from PyQt5.QtCore import pyqtRemoveInputHook
+import string
 
 def hyperstack(data, color = None, cmap = None,
                overlay = None, overlay_labels = None, hyperparam = None,
+               side_views = False,
                plot_now = True, live = False):
     '''Function to use the Hyperstack class. 
     Parameters
@@ -60,12 +62,13 @@ def hyperstack(data, color = None, cmap = None,
     
     # Initialize plot
     fig = plt.figure(cfn)
-    ax = fig.add_subplot(111)
+    if side_views:
+        fig.set_size_inches(10., 10., forward=True)
     
     # Instantiate Hyperstack class
-    iperpila = Hyperstack(ax, data, color = color, cmap = cmap, 
+    iperpila = Hyperstack(fig, data, color = color, cmap = cmap, 
                  overlay = overlay, overlay_labels = overlay_labels, 
-                 hyperparam = hyperparam)
+                 hyperparam = hyperparam, side_views = side_views)
     
     # Bind the figure to the interactions events
     fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
@@ -115,12 +118,39 @@ def hyperstack_live_min_interface(data, stop, out, refresh_time=0.1):
     iperpila = hyperstack(data,live=True)
 
     while True:
+        # When to stop 
         if iperpila.has_been_closed: break
         if stop[0]>0: 
             plt.close(iperpila.im.axes.figure)
             break
+        
+        # Update the plot
         iperpila.update(live=True,refresh_time=refresh_time)
+        
+        ##################################################################
+        ## Extract information and pass it to the caller via the out array
+        ##################################################################
+        
+        # Last clicked position
         out[0:4] = iperpila.current_point
+        
+        # Last pressed key for commands. Pass the letter index in the alphabet
+        # in out[4] and whether ctrl was pressed in out[5]
+        if iperpila.last_pressed_key.startswith("ctrl+"):
+            last_key = iperpila.last_pressed_key[5:6]
+            out[5] = 1.0
+        elif iperpila.last_pressed_key.startswith("alt+"):
+            last_key = iperpila.last_pressed_key[4:5]
+            out[5] = 2.0
+        elif iperpila.last_pressed_key == "control":
+            pass
+        elif iperpila.last_pressed_key == "alt":
+            pass
+        else:
+            last_key = iperpila.last_pressed_key[0:1]
+            out[5] = 0.0
+
+        out[4] = string.ascii_lowercase.index(last_key)
     
     return 1.0
 
@@ -225,14 +255,20 @@ class Hyperstack():
     
     # Utilites
     has_been_closed = False
+    z_projection = False
+    side_views_slice = False
+    last_pressed_key = 'a'
+    instructions_shown = False
+    pause_live_update = False
     
-    def __init__(self, ax, data, color = None, cmap = None, 
-                 overlay = None, overlay_labels = None, hyperparam = None):
+    def __init__(self, fig, data, color = None, cmap = None, 
+                 overlay = None, overlay_labels = None, hyperparam = None,
+                 side_views = True):
         '''Class for plotting the hyperstack-visualization of data.
         Parameters
         ----------
-        ax: matplotlib axis
-            Initialized matplotlib axis in which to imshow the data.
+        ax: matplotlib figure
+            Initialized matplotlib figure in which to imshow the data.
         data: numpy array
             The default interpretation of the dimensions is [z, c, y, x]. (c is
             channel). However, the initialization can accept also the following:
@@ -266,7 +302,14 @@ class Hyperstack():
         # Don't really remember what this was for.
         pyqtRemoveInputHook()
         
-        self.ax = ax
+        self.side_views = side_views
+        self.fig = fig
+        if not side_views:
+            self.ax = self.fig.add_subplot(111)
+        else:
+            self.ax = self.fig.add_subplot(221)
+            self.ax1 = self.fig.add_subplot(222, sharey=self.ax)
+            self.ax2 = self.fig.add_subplot(223, sharex=self.ax)
         self.ax.set_title(self.def_title)
         
         # Prepare matplotlib to accept the new commands you set
@@ -298,7 +341,6 @@ class Hyperstack():
         # self.hyperdata, and make a 4-dimensional view of it. With a given 
         # keys, the user will be able to jump along those strides.
         n_dims = len(data.shape)
-        print("n_dims",n_dims)
         if n_dims < 2: print("Throw exception, not an image")
         elif n_dims == 2: self.data = data[None,None,:,:]
         elif n_dims == 3: 
@@ -313,6 +355,8 @@ class Hyperstack():
             zero = tuple([0 for i in range(n_dims-4)])
             self.data = data[zero]
         
+        self.data_live = self.data
+        
         # Extract information about the data to be plotted
         self.dim = self.data.shape
         
@@ -325,6 +369,12 @@ class Hyperstack():
         self.data_min = np.min(self.data)
         self.vmax = self.data_max
         self.vmin = self.data_min
+        
+        if self.side_views:
+            self.data_max_side1 = np.max(np.sum(self.data,axis=2))
+            self.data_min_side1 = np.min(np.sum(self.data,axis=2))
+            self.data_max_side2 = np.max(np.sum(self.data,axis=3))
+            self.data_min_side2 = np.min(np.sum(self.data,axis=3))
         
         # overlay must be an irrarray with structure (ch)[i, coord]
         # This ensures that it's still contiguous in memory.
@@ -355,34 +405,126 @@ class Hyperstack():
         else:
             self.overlay_labels = None
         
-        # Initialize plot
+        # Initialize image plot
         self.im = self.ax.imshow(self.data[self.z,self.ch],
                                  interpolation="none",
                                  vmin=self.vmin, vmax=self.vmax)
+                                 
+        if self.side_views:
+            # Initialize image plot for side views
+            self.im2 = self.ax2.imshow(np.sum(self.data[:,self.ch,:,:],axis=1),
+                                       interpolation="none",
+                                       #vmin=self.vmin, vmax=self.vmax,
+                                       aspect='auto')
+            self.im1 = self.ax1.imshow(np.sum(self.data[:,self.ch,:,:],axis=2).T,
+                                       interpolation="none",
+                                       #vmin=self.vmin, vmax=self.vmax,
+                                       aspect='auto')
+                              
+            # Initialize line cursors on main image/view
+            self.im_axhline = self.im.axes.axhline(
+               self.current_point[2],
+               c=self.good_overlay_colors[self.ch%self.n_overlay_colors],
+               lw=0.5)
+            self.im_axvline = self.im.axes.axvline(
+               self.current_point[3],
+               c=self.good_overlay_colors[self.ch%self.n_overlay_colors],
+               lw=0.5)
+                     
+            # Initialize line cursors on side views
+            self.im2_axhline = self.im1.axes.axhline(
+               self.z,
+               c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
+            self.im2_axvline = self.im1.axes.axvline(
+               self.current_point[2],
+               c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
+            self.im1_axhline = self.im2.axes.axhline(
+               self.z,
+               c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
+            self.im1_axvline = self.im2.axes.axvline(
+               self.current_point[3],
+               c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
+        
+        # Initialize overlay plot
         if self.overlay is not None:
             self.overlay_plot, = self.ax.plot(0,0,'o',
                                              markersize=self.overlay_markersize,
                                              c='k')
+        # Initialize overlay labels plot
         if self.overlay is not None and self.overlay_labels is not None:
             ann = self.ax.annotate("",xy=(0,0),xytext=(0,0),color="k")
             self.overlay_labels_plot = [ann]
         
-        
+        self.fig.tight_layout(pad=1.5, w_pad=1.5, h_pad=1.5)
         self.update()
         
     def update(self, live = False, refresh_time=0.1):
     
-        #######
-        # Image
-        #######
-        self.im.set_data(self.data[self.z,self.ch])
+        ############
+        # Main image
+        ############
+        if not self.z_projection:
+            self.im.set_data(self.data[self.z,self.ch])
+            self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+str(self.ch))
+        else:
+            self.im.set_data(np.sum(self.data[:,self.ch],axis=0))
+            self.ax.set_xlabel("x (z projection) of channel "+str(self.ch))
+        self.ax.set_ylabel("y")
+        
+        dx = abs(self.ax.get_xlim()[1]-self.ax.get_xlim()[0])
+        dy = abs(self.ax.get_ylim()[1]-self.ax.get_ylim()[0])
+        self.ax.set_aspect(dx/dy)
+            
         self.im.set_cmap(self.cmaps[self.ch % self.n_colors])
-        self.ax.set_xlabel('slice '+str(self.z)+"   channel "+str(self.ch))
         # Adjust scale
-        if self.data_max*self.scale[self.ch] > self.im.norm.vmin:
-            norm = colors.Normalize(vmin=self.im.norm.vmin, 
+        if self.data_max*self.scale[self.ch] > self.data_min:#self.im.norm.vmin:
+            norm = colors.Normalize(vmin=self.data_min, 
                                     vmax=self.data_max*self.scale[self.ch])
             self.im.set_norm(norm)
+        
+        ########################
+        # Side views, if present
+        ########################
+        if self.side_views:
+            if not self.side_views_slice:
+                self.im2.set_data(np.sum(self.data[:,self.ch,:,:],axis=1))
+                self.im2.axes.set_xlabel("x (y projection)")
+                self.im2.axes.set_ylabel("z")
+                self.im1.set_data(np.sum(self.data[:,self.ch,:,:],axis=2).T)
+                self.im1.axes.set_ylabel("y (x projection)")
+                self.im1.axes.set_xlabel("z")
+            else:
+                y = int(self.current_point[2])
+                x = int(self.current_point[3])
+                self.im2.set_data(self.data[:,self.ch,y,:])
+                self.im2.axes.set_xlabel("x (y = "+str(y)+")")
+                self.im2.axes.set_ylabel("z")
+                self.im1.set_data(self.data[:,self.ch,:,x].T)
+                self.im1.axes.set_ylabel("y (x = "+str(x)+")")
+                self.im1.axes.set_xlabel("z")
+            
+            ## Update line cursors
+            y = self.current_point[2]
+            x = self.current_point[3]
+            z = self.z
+            # Main image
+            self.im_axhline.set_data([0,self.dim[2]],[y,y])
+            self.im_axvline.set_data([x,x],[0,self.dim[3]])
+            self.im2_axvline.set_data([z,z],[0,self.dim[3]])
+            self.im2_axhline.set_data([0,self.dim[0]],[y,y])
+            self.im1_axhline.set_data([0,self.dim[2]],[z,z])
+            self.im1_axvline.set_data([x,x],[0,self.dim[0]])
+                
+            # Adjust scale
+            norm1 = colors.Normalize(vmin=self.data_min_side1,
+                                     vmax=self.data_max_side1)
+            norm2 = colors.Normalize(vmin=self.data_min_side2,
+                                     vmax=self.data_max_side2)
+            self.im1.set_norm(norm1)
+            self.im2.set_norm(norm2)
+            
+            self.im1.axes.set_ylim(self.im.axes.get_ylim())
+            self.im2.axes.set_xlim(self.im.axes.get_xlim())
                                  
         #########
         # Overlay
@@ -428,11 +570,14 @@ class Hyperstack():
                                                ovrl[i,-2]+self.overlay_label_dy),
                                        color=self.good_overlay_colors[self.ch])
                 self.overlay_labels_plot.append(ann)
-           
-        self.im.axes.figure.canvas.draw()
+        
+        ########
+        # Redraw
+        ########
+        self.fig.canvas.draw()
         
         if live:
-            self.im.axes.figure.canvas.start_event_loop(refresh_time)
+            self.fig.canvas.start_event_loop(refresh_time)
         
         
     def onscroll(self, event):
@@ -443,9 +588,11 @@ class Hyperstack():
         self.update()
     
     def onkeypress(self, event):
+        self.last_pressed_key = event.key
+        
         if not self.mode_label:
             if event.key == 'h':
-                print(self.instructions)
+                self.show_instructions()
             elif event.key == 'd' or event.key == 'right':
                 self.ch = (self.ch + 1) % self.dim[1]
             elif event.key == 'a' or event.key == 'left':
@@ -461,18 +608,46 @@ class Hyperstack():
             elif event.key == 'ctrl+0':
                 self.im.norm.vmin = 0
             elif event.key == 'ctrl+9':
-                self.im.norm.vmin = self.minX
+                self.im.norm.vmin = self.data_min
             elif event.key == 'ctrl+1':
                 self.im.norm.vmin = 100
             elif event.key == 'ctrl+4':
                 self.im.norm.vmin = 400
+            elif event.key == 'alt+l':
+                # Toggle live update
+                self.pause_live_update = not self.pause_live_update
+                if self.pause_live_update:
+                    self.data_live = self.data
+                    self.data = np.copy(self.data)
+                else:
+                    self.data = self.data_live
+            elif event.key == 'alt+z':
+                self.z_projection = not self.z_projection
+                self.side_views_slice = self.z_projection
+                
+                # Recalculate data_max and data_min
+                if not self.z_projection:
+                    self.data_max = np.max(self.data)
+                    self.data_min = np.min(self.data)
+                    self.data_max_side1 = np.max(np.sum(self.data,axis=3))
+                    self.data_min_side1 = np.min(np.sum(self.data,axis=3))
+                    self.data_max_side2 = np.max(np.sum(self.data,axis=2))
+                    self.data_min_side2 = np.min(np.sum(self.data,axis=2))
+                else:
+                    self.data_max_side1 = self.data_max
+                    self.data_max_side2 = self.data_max
+                    self.data_min_side1 = self.data_min
+                    self.data_min_side2 = self.data_min
+                    self.data_max = np.max(np.sum(self.data,axis=0))
+                    self.data_min = np.min(np.sum(self.data,axis=0))
+                    
             elif event.key == 'ctrl+o': # Rename this to select
                 self.mode_select = not self.mode_select
                 if self.mode_select == True:
                     pass
                     #Do stuff
                 else:
-                    self.ax.set_title(self.defaultTitle)
+                    self.ax.set_title(self.def_title)
             if event.key == 'ctrl+p': # Rename this to label
                 self.mode_label = not self.mode_label
                 if self.mode_label == True:
@@ -480,17 +655,18 @@ class Hyperstack():
                                 "Select points mode. "+\
                                 "Press ctrl+p to switch back to normal mode.")
                 else:
-                    self.ax.set_title(self.defaultTitle)
+                    self.ax.set_title(self.def_title)
                     
         self.update()
         
     def onbuttonpress(self, event):
-        ix, iy = event.xdata, event.ydata
-        if ix != None and iy != None:
-            self.current_point[0] = self.z
-            self.current_point[1] = self.ch
-            self.current_point[2] = iy
-            self.current_point[3] = ix
+        if plt.get_current_fig_manager().toolbar.mode == '':
+            ix, iy = event.xdata, event.ydata
+            if ix != None and iy != None:
+                self.current_point[0] = self.z
+                self.current_point[1] = self.ch
+                self.current_point[2] = iy
+                self.current_point[3] = ix
             
     def onclose(self,event):
         self.has_been_closed = True
@@ -501,4 +677,20 @@ class Hyperstack():
     def set_overlay_label_displacement(self,dx,dy):
         self.overlay_label_dx = dx
         self.overlay_label_dy = dy
+        
+    def show_instructions(self):
+        self.instructions_shown = not self.instructions_shown
+        if self.instructions_shown:
+            self.im.axes.set_title("Press h to hide instructions")
+            if not self.side_views:
+                print(self.instructions)
+            else:
+                self.instructions_plot = self.fig.text(
+                                        0.5,0.1,self.instructions,fontsize=8)
+        else:
+            self.im.axes.set_title(self.def_title)
+            self.instructions_plot.remove()
+            
+            
+        
         
