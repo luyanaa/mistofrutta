@@ -1,6 +1,9 @@
 #include <cmath>
 #include <complex>
 #include "ft.hpp"
+#ifndef M_PI
+#define M_PI           3.14159265358979323846
+#endif
 
 void ft_cubic(std::complex<double>* h, int32_t M, double a, double delta, double* R, int32_t N, std::complex<double> *I){
     for(int n=0;n<N;n++){
