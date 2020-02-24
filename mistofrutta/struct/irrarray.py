@@ -55,7 +55,7 @@ class irrarray(np.ndarray):
         obj.firstIndex = obj.upToIndex
         
         return obj
-
+    
     def __array_finalize__(self, obj):
         if obj is None: return
         self.columnNames = getattr(obj, 'columnNames', ["z","y","x"])
