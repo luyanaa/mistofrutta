@@ -87,7 +87,7 @@ class IndexTracker(object):
             if self.ch != 4: #TODO check self.colors instead of the number of the channel
                 goodcolor='r'
             else:
-                goodcolor='g'
+                goodcolor='c'
             if(isinstance(self.OverlayData[0],list)):
                 punti = self.OverlayData[self.ch][self.z].T
             else:
@@ -142,7 +142,7 @@ class IndexTracker(object):
                     if self.colors[self.ch] != 'r': 
                         goodcolor='r'
                     else:
-                        goodcolor='g'
+                        goodcolor='c'
                     punti = self.OverlayData[self.z].T
                     if not hasattr(self,'overlay'):
                         self.overlay, = self.ax.plot(punti[0],punti[1],'o',markersize=1,c=goodcolor)
@@ -193,7 +193,7 @@ class IndexTracker(object):
             if self.colors[self.ch] != 'red' and self.colors[self.ch] != 'magenta': 
                 goodcolor='r'
             else:
-                goodcolor='g'
+                goodcolor='c'
             if(isinstance(self.OverlayData[0],list)):
                 punti = self.OverlayData[self.ch][self.z].T
             else:

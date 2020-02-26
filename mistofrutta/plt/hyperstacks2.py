@@ -402,8 +402,8 @@ class Hyperstack():
         # Overlay labels
         # overlay_labels must be an irrarray with structure (ch)[i]
         if overlay_labels is not None:
-            # Temporary
-            self.overlay_labels = None
+            if overlay_n_dims == 1:
+                self.overlay_labels = overlay_labels
             
             # Make them the same shape as self.overlay, as above
             
@@ -459,7 +459,7 @@ class Hyperstack():
                                              c='k')
         # Initialize overlay labels plot
         if self.overlay is not None and self.overlay_labels is not None:
-            ann = self.ax.annotate("",xy=(0,0),xytext=(0,0),color="k")
+            ann = self.ax.annotate(".",xy=(0,0),xytext=(0,0),color="k")
             self.overlay_labels_plot = [ann]
         
         self.fig.tight_layout(pad=1.5, w_pad=1.5, h_pad=1.5)
@@ -560,24 +560,33 @@ class Hyperstack():
         if self.overlay is not None and self.overlay_labels is not None:
             # Remove previous labels
             for t in self.overlay_labels_plot:
-                t.remove()
+                try:
+                    t.remove()
+                except:
+                    pass
             
             # Extract the labels to be plotted in this channel    
-            ovrl_labs = self.overlay_labels[self.ch%self.overlay.shape[-2]]
+            ovrl_labs = self.overlay_labels(ch=self.ch%self.overlay_n_ch)
             
             # Extract the points to be plotted in this slice.
             if self.overlay.shape[-1] == 3:
-                ovrl_labs = ovrl_labs[np.where(ovrl[0]==self.z%self.dim[-3])]
+                ovrl = self.overlay(ch=self.ch%self.overlay_n_ch)
+                ovrl_labs = ovrl_labs[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                
             else:
                 pass
                 
             # Add to the plot
+            self.overlay_labels_plot = []
             for i in np.arange(len(ovrl_labs)):
                 ann = self.ax.annotate(ovrl_labs[i],
                                        xy=(ovrl[i,-1],ovrl[i,-2]),
                                        xytext=(ovrl[i,-1]+self.overlay_label_dx,
                                                ovrl[i,-2]+self.overlay_label_dy),
-                                       color=self.good_overlay_colors[self.ch])
+                                       color=self.good_overlay_colors[
+                                                self.ch%self.n_overlay_colors],
+                                       fontsize=8)
                 self.overlay_labels_plot.append(ann)
         
         ########
@@ -612,9 +621,9 @@ class Hyperstack():
             elif event.key == 'w':
                 self.scale[self.ch] = max(self.scale[self.ch]*0.7, 0.0001)
             elif event.key == 'up':
-                self.z = (self.z + 1) % self.slices
+                self.z = (self.z + 1) % self.dim[0]
             elif event.key == 'down':
-                self.z = (self.z - 1) % self.slices
+                self.z = (self.z - 1) % self.dim[0]
             elif event.key == 'ctrl+0':
                 self.im.norm.vmin = 0
             elif event.key == 'ctrl+9':
@@ -681,7 +690,46 @@ class Hyperstack():
             
     def onclose(self,event):
         self.has_been_closed = True
+        
+    def create_additional_plot(self):
+        try:
+            self.ax3
+        except:
+            self.ax3 = self.fig.add_subplot(224)
+            self.additional_plot, = self.ax3.plot(0,0,'-')
+            
+    def update_additional_plot(self,A,B=None,label=None):
+        if B is None: 
+            Y = A
+            X = np.arange(A.shape[0])
+        else:
+            X = A
+            Y = B
+            
+        try:
+            self.ax3
+        except:
+            self.create_additional_plot()
+            
+        self.additional_plot.set_xdata(X)
+        self.additional_plot.set_ydata(Y)
+        
+        self.ax3.set_xlim(np.min(X),np.max(X))
+        try:
+            self.ax3.set_ylim(np.min(Y),np.max(Y))
+        except:
+            pass
+        
+        if label is not None:
+           self.additional_plot.set_label(str(label))
+           self.ax3.legend()
     
+    def remove_additional_plot(self):
+        try:
+            self.fig.delaxes(self.ax3)
+        except:
+            pass
+        
     def set_overlay_markersize(self,markersize):
         self.overlay_markersize = markersize
     
@@ -702,6 +750,33 @@ class Hyperstack():
             self.im.axes.set_title(self.def_title)
             self.instructions_plot.remove()
             
-            
+    def get_current_point(self):
+        return self.current_point
         
+    def get_closest_point(self):
+        '''Get overlay point closest to last click.
         
+        Returns
+        -------
+        closest_point: np.array
+            [ch, i] overlay point i in channel ch.
+        '''
+        if self.overlay.shape[-1] == 3:
+            pt = np.array([self.current_point[0],
+                           self.current_point[2],
+                           self.current_point[3]])
+        else:
+            pt = np.array([self.current_point[2],
+                           self.current_point[3]])
+        
+        ovrl = self.overlay(ch=self.ch%self.overlay_n_ch)
+        
+        if len(ovrl)>0:
+            D = np.sum(np.power(pt - ovrl,2),axis=-1)
+            match = np.argmin(D)
+        else:
+            match = 0
+        
+        closest_point = np.array([self.ch%self.overlay_n_ch,match])
+        
+        return closest_point
