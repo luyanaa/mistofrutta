@@ -5,9 +5,9 @@ import matplotlib.colors as colors
 from PyQt5.QtCore import pyqtRemoveInputHook
 import string
 
-def hyperstack(data, color = None, cmap = None,
+def hyperstack2(data, color = None, cmap = None,
                overlay = None, overlay_labels = None, hyperparam = None,
-               side_views = False,
+               side_views = True,
                plot_now = True, live = False):
     '''Function to use the Hyperstack class. 
     Parameters
@@ -115,7 +115,7 @@ def hyperstack_live_min_interface(data, stop, out, refresh_time=0.1):
     # You'll have to add the overlay
     #overlay = mf.struct.irrarray(overlay_, irrStrides = [[3,17]], strideNames=["ch"])
 
-    iperpila = hyperstack(data,live=True)
+    iperpila = hyperstack2(data,live=True)
 
     while True:
         # When to stop 
@@ -125,7 +125,10 @@ def hyperstack_live_min_interface(data, stop, out, refresh_time=0.1):
             break
         
         # Update the plot
-        iperpila.update(live=True,refresh_time=refresh_time)
+        try:
+            iperpila.update(live=True,refresh_time=refresh_time)
+        except:
+            pass
         
         ##################################################################
         ## Extract information and pass it to the caller via the out array
@@ -149,9 +152,13 @@ def hyperstack_live_min_interface(data, stop, out, refresh_time=0.1):
         else:
             last_key = iperpila.last_pressed_key[0:1]
             out[5] = 0.0
-
-        out[4] = string.ascii_lowercase.index(last_key)
+        
+        try:
+            out[4] = string.ascii_lowercase.index(last_key)
+        except:
+            pass
     
+    del iperpila
     return 1.0
 
 def make_colormap(colors):
@@ -459,7 +466,7 @@ class Hyperstack():
         self.update()
         
     def update(self, live = False, refresh_time=0.1):
-    
+        
         ############
         # Main image
         ############
@@ -523,8 +530,10 @@ class Hyperstack():
             self.im1.set_norm(norm1)
             self.im2.set_norm(norm2)
             
+            self.im1.axes.set_xlim(0,self.dim[0]-1)
             self.im1.axes.set_ylim(self.im.axes.get_ylim())
             self.im2.axes.set_xlim(self.im.axes.get_xlim())
+            self.im2.axes.set_ylim(self.dim[0]-1,0)
                                  
         #########
         # Overlay
@@ -585,6 +594,7 @@ class Hyperstack():
             self.z = (self.z + 1) % self.dim[0]
         else:
             self.z = (self.z - 1) % self.dim[0]
+        
         self.update()
     
     def onkeypress(self, event):
@@ -665,8 +675,9 @@ class Hyperstack():
             if ix != None and iy != None:
                 self.current_point[0] = self.z
                 self.current_point[1] = self.ch
-                self.current_point[2] = iy
-                self.current_point[3] = ix
+                self.current_point[2] = iy % self.dim[2]
+                self.current_point[3] = ix % self.dim[3]
+        self.update()
             
     def onclose(self,event):
         self.has_been_closed = True
