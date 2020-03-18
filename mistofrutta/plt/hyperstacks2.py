@@ -252,6 +252,7 @@ class Hyperstack():
     
     # Data
     current_point = np.zeros(4)
+    selected_points = np.zeros((0,4))
     
     # Utilites
     has_been_closed = False
@@ -579,6 +580,23 @@ class Hyperstack():
                                                 self.ch%self.n_overlay_colors],
                                        fontsize=8)
                 self.overlay_labels_plot.append(ann)
+                
+        #################
+        # SELECTED POINTS
+        #################
+        if self.mode_select and self.selected_points.shape[0] > 0:
+            sel_pts = self.selected_points[np.where(
+                                (self.selected_points[:,0] == self.z)*(self.selected_points[:,1] == self.ch))]
+            
+            self.mode_select_plot.set_xdata(sel_pts[:,-1])
+            self.mode_select_plot.set_ydata(sel_pts[:,-2])
+            
+            self.mode_select_plot.set_color(
+                    self.good_overlay_colors[self.ch%self.n_overlay_colors])
+            self.mode_select_plot.set_markersize(self.overlay_markersize)
+        elif self.mode_select and self.selected_points.shape[0] == 0:
+            self.mode_select_plot.set_xdata(-1)
+            self.mode_select_plot.set_ydata(-1)
         
         ########
         # Redraw
@@ -653,10 +671,13 @@ class Hyperstack():
             elif event.key == 'ctrl+o': # Rename this to select
                 self.mode_select = not self.mode_select
                 if self.mode_select == True:
-                    pass
-                    #Do stuff
+                    self.mode_select_plot, = self.ax.plot(
+                        [],'x',
+                        c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
+                    self.selected_points = np.zeros((0,4))
                 else:
                     self.ax.set_title(self.def_title)
+                    
             if event.key == 'ctrl+p': # Rename this to label
                 self.mode_label = not self.mode_label
                 if self.mode_label == True:
@@ -676,6 +697,22 @@ class Hyperstack():
                 self.current_point[1] = self.ch
                 self.current_point[2] = iy
                 self.current_point[3] = ix
+                
+            if self.mode_select and event.button == 1:
+                # Add point
+                self.selected_points = np.append(
+                                        self.selected_points,
+                                        [self.current_point], axis=0)
+            elif self.mode_select and event.button == 3:
+                # Delete last point
+                if self.selected_points.shape[0] > 0:
+                    self.selected_points = np.delete(
+                                            self.selected_points,
+                                            -1,axis=0)
+                                            
+            if self.mode_select:
+                self.update()
+                
             
     def onclose(self,event):
         self.has_been_closed = True
@@ -712,6 +749,10 @@ class Hyperstack():
         if label is not None:
            self.additional_plot.set_label(str(label))
            self.ax3.legend()
+           
+    def clear_additional_plot(self):
+        self.additional_plot.set_xdata([])
+        self.additional_plot.set_ydata([])
     
     def remove_additional_plot(self):
         try:
@@ -769,3 +810,6 @@ class Hyperstack():
         closest_point = np.array([self.ch%self.overlay_n_ch,match])
         
         return closest_point
+        
+    def get_selected_points(self):
+        return self.selected_points

@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 class irrarray(np.ndarray):
     '''
@@ -30,6 +31,7 @@ class irrarray(np.ndarray):
     def __new__(cls, input_array, irrStrides, strideNames=["k"], columnNames=["z","y","x"]):
         obj = np.asarray(input_array).view(cls)
         obj.irrStrides = irrStrides
+        obj.strideNames = strideNames
         obj.columnNames = columnNames
         
         if type(irrStrides)!=list: irrStrides=[irrStrides]
