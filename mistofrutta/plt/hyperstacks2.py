@@ -74,6 +74,9 @@ def hyperstack2(data, color = None, cmap = None,
     fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
     fig.canvas.mpl_connect('scroll_event', iperpila.onscroll)
     fig.canvas.mpl_connect('button_press_event', iperpila.onbuttonpress)
+    fig.canvas.mpl_connect('axes_enter_event', iperpila.onaxisenter)
+    fig.canvas.mpl_connect('figure_enter_event', iperpila.onfigureenter)
+    fig.canvas.mpl_connect('figure_leave_event', iperpila.onfigureleave)
     fig.canvas.mpl_connect('close_event', iperpila.onclose)
     
     # If no live mode has been requested and no plot_now, plot and block.
@@ -256,10 +259,13 @@ class Hyperstack():
     # Operating modes
     mode_select = False
     mode_label = False
+    active_axis = None
+    figure_is_active = True
     
     # Data
     current_point = np.zeros(4)
     selected_points = np.zeros((0,4))
+    last_clicked_point = np.zeros(2)
     
     # Utilites
     has_been_closed = False
@@ -702,27 +708,41 @@ class Hyperstack():
     def onbuttonpress(self, event):
         if plt.get_current_fig_manager().toolbar.mode == '':
             ix, iy = event.xdata, event.ydata
-            if ix != None and iy != None:
-                self.current_point[0] = self.z
-                self.current_point[1] = self.ch
-                self.current_point[2] = iy % self.dim[2]
-                self.current_point[3] = ix % self.dim[3]
-                
-            if self.mode_select and event.button == 1:
-                # Add point
-                self.selected_points = np.append(
-                                        self.selected_points,
-                                        [self.current_point], axis=0)
-            elif self.mode_select and event.button == 3:
-                # Delete last point
-                if self.selected_points.shape[0] > 0:
-                    self.selected_points = np.delete(
+            self.last_clicked_point[0] = iy
+            self.last_clicked_point[1] = ix
+            
+            if self.active_axis is self.ax and self.figure_is_active:
+                if ix != None and iy != None:
+                    self.current_point[0] = self.z
+                    self.current_point[1] = self.ch
+                    self.current_point[2] = iy % self.dim[2]
+                    self.current_point[3] = ix % self.dim[3]
+                    
+                if self.mode_select and event.button == 1:
+                    # Add point
+                    self.selected_points = np.append(
                                             self.selected_points,
-                                            -1,axis=0)
-                                            
-            if self.mode_select:
-                self.update()
+                                            [self.current_point], axis=0)
+                elif self.mode_select and event.button == 3:
+                    # Delete last point
+                    if self.selected_points.shape[0] > 0:
+                        self.selected_points = np.delete(
+                                                self.selected_points,
+                                                -1,axis=0)
+                                                
+                if self.mode_select:
+                    self.update()
                 
+    def onaxisenter(self,event):
+        if self.figure_is_active:
+            self.active_axis=event.inaxes
+    
+    def onfigureenter(self,event):
+        self.figure_is_active = (event.canvas.figure.number == self.fig.number)
+        
+    def onfigureleave(self,event):
+        self.figure_is_active = not (event.canvas.figure.number == self.fig.number)
+    
     def onclose(self,event):
         self.has_been_closed = True
         
@@ -768,7 +788,45 @@ class Hyperstack():
             self.fig.delaxes(self.ax3)
         except:
             pass
+    
+    def set_data(self,data):
+        self.data = data
+        n_dims = len(data.shape)
+        if n_dims < 2: print("Throw exception, not an image")
+        elif n_dims == 2: self.data = data[None,None,:,:]
+        elif n_dims == 3: 
+            if hyperparam is not "c":
+                self.data = data[:,None,:,:]
+            else:
+                self.data = data[None,:,:,:]
+                print(self.data.shape)
+        elif n_dims == 4: self.data = data
+        elif n_dims > 4:
+            self.hyperdata = data
+            zero = tuple([0 for i in range(n_dims-4)])
+            self.data = data[zero]
         
+        self.data_live = self.data
+        
+        # Extract information about the data to be plotted
+        self.dim = self.data.shape
+        
+        # Initialize current positions.
+        self.z = self.dim[0]//2
+        self.ch = 0
+        
+        self.scale = np.ones(self.dim[1])
+        self.data_max = np.max(self.data)
+        self.data_min = np.min(self.data)
+        self.vmax = self.data_max
+        self.vmin = self.data_min
+        
+        if self.side_views:
+            self.data_max_side1 = np.max(np.sum(self.data,axis=2))
+            self.data_min_side1 = np.min(np.sum(self.data,axis=2))
+            self.data_max_side2 = np.max(np.sum(self.data,axis=3))
+            self.data_min_side2 = np.min(np.sum(self.data,axis=3))
+    
     def set_overlay_markersize(self,markersize):
         self.overlay_markersize = markersize
     
@@ -791,6 +849,12 @@ class Hyperstack():
             
     def get_current_point(self):
         return self.current_point
+        
+    def get_last_clicked_point(self):
+        return self.last_clicked_point
+        
+    def get_active_axis(self):
+        return self.active_axis
         
     def get_closest_point(self):
         '''Get overlay point closest to last click.
