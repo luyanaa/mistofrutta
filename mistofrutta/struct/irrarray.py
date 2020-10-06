@@ -102,7 +102,7 @@ class irrarray(np.ndarray):
                     # numpy array so that we're good in any case.
                     for k in K:
                         tmp = self[np.where(self[:,columnIndex]==k)]            
-                        if len(tmp)>0: tmp=tmp[0]
+                        # why was I doing this? if len(tmp)>0: tmp=tmp[0]
                         if dtype!="same": tmp=tmp.astype(tmp)
                         tbReturned.append(tmp)
                 else:

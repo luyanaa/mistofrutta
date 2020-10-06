@@ -537,10 +537,10 @@ class Hyperstack():
             self.im1.set_norm(norm1)
             self.im2.set_norm(norm2)
             
-            self.im1.axes.set_xlim(0,self.dim[0]-1)
+            self.im1.axes.set_xlim(0,max(self.dim[0]-1,0.5))
             self.im1.axes.set_ylim(self.im.axes.get_ylim())
             self.im2.axes.set_xlim(self.im.axes.get_xlim())
-            self.im2.axes.set_ylim(self.dim[0]-1,0)
+            self.im2.axes.set_ylim(max(self.dim[0]-1,0.5),0)
                                  
         #########
         # Overlay
