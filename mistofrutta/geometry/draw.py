@@ -1,6 +1,8 @@
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 import matplotlib.colors
+import shapely.geometry as geom
 from matplotlib.widgets import RectangleSelector
 from matplotlib.widgets import PolygonSelector
 from matplotlib.widgets import Slider
@@ -22,7 +24,7 @@ class line:
         # Create the figure and plot the image
         fig = plt.figure(1)
         ax1 = fig.add_subplot(111)
-        ax1.imshow(image.T)
+        ax1.imshow(np.swapaxes(image,0,1))
         self.line, = ax1.plot(0,0,'*k')
         
         self.cid = self.line.figure.canvas.mpl_connect('button_press_event', self)
@@ -47,6 +49,9 @@ class line:
     def getLine(self):
         # Convert to np.array and return    
         return np.array([self.X,self.Y]).T #[::-1]
+        
+    def get_line(self):
+        return self.getLine()
         
         
 class rectangle:
@@ -238,3 +243,45 @@ class polygon:
         
     def getPolygon(self):
         return self.verts
+        
+def crop_image(im,folder=None,y_axis=2,x_axis=3,return_all=False):
+    if folder[-1] != "/": folder+="/"
+    if folder is None:
+        rectangle = mf.geometry.draw.rectangle(np.sum(Image,axis=(0,1)))
+        r_c = rectangle.getRectangle()
+    elif not os.path.isfile(folder+'rectangle.txt'):
+        print("Select rectangle to crop the image")
+        rectangle = mf.geometry.draw.rectangle(np.sum(Image,axis=(0,1)))
+        r_c = rectangle.getRectangle()
+        np.savetxt(folder+"rectangle.txt",r_c,fmt="%d")
+    else:
+        r_c = np.loadtxt(folder+"rectangle.txt",dtype=int)
+    
+    #Crop the image
+    im = im.take(indices=range(r_c[0,0],r_c[1,0]), axis=y_axis)
+    im = im.take(indices=range(r_c[0,1],r_c[1,1]), axis=x_axis)
+
+    if return_all:
+        return im, r_c
+    else:
+        return im
+        
+def select_points(points, mask, method='polygon',return_all=False):
+    if method=='polygon':
+        polygon_mask = geom.polygon.Polygon(mask)
+        bool_mask = np.ones(len(points),dtype=bool)
+        for n in np.arange(len(points)):
+            pt = points[n]
+            punto = geom.Point(pt[1],pt[0])
+            bool_mask[n] = polygon_mask.contains(punto)
+    else:
+        bool_mask = (points[:,1] > mask[0,0])* \
+                    (points[:,1] < mask[1,0])* \
+                    (points[:,0] > mask[0,1])* \
+                    (points[:,0] < mask[1,1])
+    
+    points_out = points[bool_mask]
+    if return_all:              
+        return points_out, bool_mask
+    else:
+        return points_out

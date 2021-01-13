@@ -27,6 +27,9 @@ class irrarray(np.ndarray):
     z,y,x respectively. Again, this is just a shorthand notation for it.
     You can change the column reserved names via the parameter columnNames.
     '''
+    
+    columnNames = ["z","y","x"]
+    upToIndex = {}
 
     def __new__(cls, input_array, irrStrides, strideNames=["k"], columnNames=["z","y","x"]):
         obj = np.asarray(input_array).view(cls)
@@ -49,7 +52,7 @@ class irrarray(np.ndarray):
                        pass an empty list as columnNames.")
             else:
                 # Compute limits of blocks from strides
-                obj.upToIndex[name] = np.zeros(len(irrStrides[i])+1,dtype=int)
+                obj.upToIndex[name] = np.zeros(len(irrStrides[i])+1,dtype=np.int32)
                 obj.upToIndex[name][1:] = np.cumsum(irrStrides[i])
         
         # Aliases
@@ -66,7 +69,7 @@ class irrarray(np.ndarray):
         
     def __array_wrap__(self, out_arr, context=None):
         return out_arr
-    
+        
     def __call__(self, k=None, dtype="same", **kwargs):
         '''
         If dtype!="same", copies will be returned!

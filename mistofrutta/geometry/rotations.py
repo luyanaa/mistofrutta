@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+import mistofrutta as mf
 
 def matrix(theta, ux, uy, uz):
     '''
@@ -42,9 +43,33 @@ def matrix(theta, ux, uy, uz):
     
     return R
     
-def rotate_3D_image(A, theta, ux, uy, uz, x0=0.0, y0=0.0, z0=0.0):
+def rotate_hyperstack(im, ch_insp=0, ch_axis=1):
+    A = np.max(im.take(indices=ch_insp, axis=ch_axis),axis=0)
+    # Draw the line that should become horizontal
+    linea = mf.geometry.draw.line(A)
+    ll = linea.get_line()
+    tan = (ll[1,1]-ll[0,1])/(ll[1,0]-ll[0,0])
+    theta = np.arctan(tan)
+    # Select the origin for the rotation
+    centro = mf.geometry.draw.line(A)
+    cc = centro.get_line()
+    x0 = cc[0,0]
+    y0 = cc[0,0]
+    
+    #Do the rotation - purely around z
+    rot_im = np.zeros_like(im)
+    for ch_j in np.arange(im.shape[ch_axis]):
+        tmp = im.take(indices=ch_j, axis=ch_axis)
+        idx=[slice(None)]*rot_im.ndim
+        idx[ch_axis] = ch_j
+        rot_im[tuple(idx)] = rotate_3D_image(tmp, theta-np.pi/2., 1.,0.,0.,0.,y0,x0)
+        
+    return rot_im
+        
+    
+def rotate_3D_image(A, theta, uz, uy, ux, z0=0.0, y0=0.0, x0=0.0):
     '''
-    Rotates a 3D image along the axis (ux,uy,uz), optionally with respect to a
+    Rotates a 3D image along the axis (uz,uy,ux), optionally with respect to a
     new specified origin of the axes.
     
     Parameters
@@ -53,9 +78,9 @@ def rotate_3D_image(A, theta, ux, uy, uz, x0=0.0, y0=0.0, z0=0.0):
         3D array containing the image to be rotated
     theta: float
         angle of the rotation
-    ux, uy, uz: float
+    uz, uy, ux: float
         components of the vector defining the axis of rotation
-    x0, y0, z0: float
+    z0, y0, x0: float
         optional coordinates of the new origin of the axes.
         
     Returns
@@ -63,27 +88,27 @@ def rotate_3D_image(A, theta, ux, uy, uz, x0=0.0, y0=0.0, z0=0.0):
     Aprime: Rotated image
     '''
     
-    nx = A.shape[0]
+    nz = A.shape[0]
     ny = A.shape[1]
-    nz = A.shape[2]
+    nx = A.shape[2]
     
-    X = np.arange(nx)-x0
-    Y = np.arange(ny)-y0
     Z = np.arange(nz)-z0
+    Y = np.arange(ny)-y0
+    X = np.arange(nx)-x0
     
-    XX, YY, ZZ = np.array(np.meshgrid(X,Y,Z,indexing='ij'))
-    XX = XX.reshape(nx*ny*nz)
-    YY = YY.reshape(nx*ny*nz)
-    ZZ = ZZ.reshape(nx*ny*nz)
+    ZZ, YY, XX = np.array(np.meshgrid(Z,Y,X,indexing='ij'))
+    ZZ = ZZ.reshape(nz*ny*nx)
+    YY = YY.reshape(nz*ny*nx)
+    XX = XX.reshape(nz*ny*nx)
     
-    XYZ = np.array([XX,YY,ZZ])
+    ZYX = np.array([ZZ,YY,XX])
     
-    interpolating_function = RegularGridInterpolator((X,Y,Z), A, 
+    interpolating_function = RegularGridInterpolator((Z,Y,X), A, 
                                             bounds_error=False, fill_value=0.0)
     
-    XYZprime = np.dot(matrix(theta, ux, uy, uz),XYZ)
+    ZYXprime = np.dot(matrix(theta, uz, uy, ux),ZYX)
     
-    Aprime = interpolating_function(XYZprime.T)
-    Aprime = Aprime.reshape((nx,ny,nz))
+    Aprime = interpolating_function(ZYXprime.T)
+    Aprime = Aprime.reshape((nz,ny,nx))
 
     return Aprime

@@ -6,9 +6,11 @@ from PyQt5.QtCore import pyqtRemoveInputHook
 import string
 
 def hyperstack2(data, color = None, cmap = None,
-               overlay = None, overlay_labels = None, hyperparam = None,
+               overlay = None, overlay_labels = None, manual_labels=None,
+               hyperparam = None,
                side_views = True,
-               plot_now = True, live = False):
+               plot_now = True, live = False,
+               rgb = False):
     '''Function to use the Hyperstack class. 
     Parameters
     ----------
@@ -67,8 +69,10 @@ def hyperstack2(data, color = None, cmap = None,
     
     # Instantiate Hyperstack class
     iperpila = Hyperstack(fig, data, color = color, cmap = cmap, 
-                 overlay = overlay, overlay_labels = overlay_labels, 
-                 hyperparam = hyperparam, side_views = side_views)
+                 overlay = overlay, overlay_labels = overlay_labels,
+                 manual_labels=manual_labels, 
+                 hyperparam = hyperparam, side_views = side_views,
+                 rgb=rgb)
     
     # Bind the figure to the interactions events
     fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
@@ -255,6 +259,7 @@ class Hyperstack():
     overlay_markersize = 1
     overlay_label_dx = 0
     overlay_label_dy = 0
+    rgb = False
     
     # Operating modes
     mode_select = False
@@ -270,14 +275,17 @@ class Hyperstack():
     # Utilites
     has_been_closed = False
     z_projection = False
+    display_overlay = True
     side_views_slice = False
     last_pressed_key = 'a'
     instructions_shown = False
+    message_shown = False
     pause_live_update = False
     
     def __init__(self, fig, data, color = None, cmap = None, 
-                 overlay = None, overlay_labels = None, hyperparam = None,
-                 side_views = True):
+                 overlay = None, overlay_labels = None, manual_labels=None,
+                 hyperparam = None,
+                 side_views = True, rgb = False):
         '''Class for plotting the hyperstack-visualization of data.
         Parameters
         ----------
@@ -317,6 +325,7 @@ class Hyperstack():
         pyqtRemoveInputHook()
         
         self.side_views = side_views
+        self.rgb = rgb
         self.fig = fig
         if not side_views:
             self.ax = self.fig.add_subplot(111)
@@ -358,12 +367,13 @@ class Hyperstack():
         if n_dims < 2: print("Throw exception, not an image")
         elif n_dims == 2: self.data = data[None,None,:,:]
         elif n_dims == 3: 
-            if hyperparam is not "c":
+            if hyperparam != "c":
                 self.data = data[:,None,:,:]
             else:
                 self.data = data[None,:,:,:]
                 print(self.data.shape)
         elif n_dims == 4: self.data = data
+        elif n_dims == 5 and self.rgb == True: self.data = data
         elif n_dims > 4:
             self.hyperdata = data
             zero = tuple([0 for i in range(n_dims-4)])
@@ -397,8 +407,13 @@ class Hyperstack():
             overlay_n_dims = len(overlay.first_index.keys())
             if overlay_n_dims == 1:
                 self.overlay = overlay
-                
             self.overlay_n_ch = len(overlay.first_index['ch'])-1
+            
+            if manual_labels is None:
+                self.manual_labels = [["" for i in np.arange(len(overlay(ch=ch_i)))] for ch_i in np.arange(self.overlay_n_ch)]
+            else:
+                self.manual_labels = manual_labels
+            
             '''elif n_dims > 2:
                 self.hyperoverlay = overlay
                 zero = tuple([0 for i in range(overlay_n_dims-2)])
@@ -411,6 +426,15 @@ class Hyperstack():
         if overlay_labels is not None:
             if overlay_n_dims == 1:
                 self.overlay_labels = overlay_labels
+            
+            if manual_labels is not None:
+                labchn = len(manual_labels)
+                for lablinei in np.arange(labchn):
+                    lab = manual_labels[lablinei]
+                    lablinen = len(lab)
+                    for labi in np.arange(lablinen):
+                        if lab[labi] != "":
+                            self.overlay_labels(ch=lablinei)[labi] = lab[labi]     
             
             # Make them the same shape as self.overlay, as above
             
@@ -426,14 +450,28 @@ class Hyperstack():
                                  
         if self.side_views:
             # Initialize image plot for side views
-            self.im2 = self.ax2.imshow(np.sum(self.data[:,self.ch,:,:],axis=1),
-                                       interpolation="none",
-                                       #vmin=self.vmin, vmax=self.vmax,
-                                       aspect='auto')
-            self.im1 = self.ax1.imshow(np.sum(self.data[:,self.ch,:,:],axis=2).T,
-                                       interpolation="none",
-                                       #vmin=self.vmin, vmax=self.vmax,
-                                       aspect='auto')
+            if not rgb:
+                self.im2 = self.ax2.imshow(
+                                    np.sum(self.data[:,self.ch,...],axis=1),
+                                    interpolation="none",
+                                    #vmin=self.vmin, vmax=self.vmax,
+                                    aspect='auto')
+                self.im1 = self.ax1.imshow(
+                                    np.sum(self.data[:,self.ch,...],axis=2).T,
+                                    interpolation="none",
+                                    #vmin=self.vmin, vmax=self.vmax,
+                                    aspect='auto')
+            else:
+                self.im2 = self.ax2.imshow(
+                                    np.max(self.data[:,self.ch,...],axis=1),
+                                    interpolation="none",
+                                    #vmin=self.vmin, vmax=self.vmax,
+                                    aspect='auto')
+                self.im1 = self.ax1.imshow(
+                                    np.swapaxes(np.max(self.data[:,self.ch,...],axis=2),0,1),
+                                    interpolation="none",
+                                    #vmin=self.vmin, vmax=self.vmax,
+                                    aspect='auto')
                               
             # Initialize line cursors on main image/view
             self.im_axhline = self.im.axes.axhline(
@@ -481,7 +519,10 @@ class Hyperstack():
             self.im.set_data(self.data[self.z,self.ch])
             self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+str(self.ch))
         else:
-            self.im.set_data(np.sum(self.data[:,self.ch],axis=0))
+            if not self.rgb:
+                self.im.set_data(np.sum(self.data[:,self.ch],axis=0))
+            else:
+                self.im.set_data(np.max(self.data[:,self.ch],axis=0))
             self.ax.set_xlabel("x (z projection) of channel "+str(self.ch))
         self.ax.set_ylabel("y")
         
@@ -501,10 +542,14 @@ class Hyperstack():
         ########################
         if self.side_views:
             if not self.side_views_slice:
-                self.im2.set_data(np.sum(self.data[:,self.ch,:,:],axis=1))
+                if not self.rgb:
+                    self.im2.set_data(np.sum(self.data[:,self.ch,...],axis=1))
+                    self.im1.set_data(np.sum(self.data[:,self.ch,...],axis=2).T)
+                else:
+                    self.im2.set_data(np.max(self.data[:,self.ch,...],axis=1))
+                    self.im1.set_data(np.swapaxes(np.max(self.data[:,self.ch,...],axis=2),0,1))
                 self.im2.axes.set_xlabel("x (y projection)")
                 self.im2.axes.set_ylabel("z")
-                self.im1.set_data(np.sum(self.data[:,self.ch,:,:],axis=2).T)
                 self.im1.axes.set_ylabel("y (x projection)")
                 self.im1.axes.set_xlabel("z")
             else:
@@ -513,7 +558,10 @@ class Hyperstack():
                 self.im2.set_data(self.data[:,self.ch,y,:])
                 self.im2.axes.set_xlabel("x (y = "+str(y)+")")
                 self.im2.axes.set_ylabel("z")
-                self.im1.set_data(self.data[:,self.ch,:,x].T)
+                if not self.rgb:
+                    self.im1.set_data(self.data[:,self.ch,:,x].T)
+                else:
+                    self.im1.set_data(np.swapaxes(self.data[:,self.ch,:,x],0,1))
                 self.im1.axes.set_ylabel("y (x = "+str(x)+")")
                 self.im1.axes.set_xlabel("z")
             
@@ -545,7 +593,7 @@ class Hyperstack():
         #########
         # Overlay
         #########
-        if self.overlay is not None:
+        if self.overlay is not None and self.display_overlay:
             # Extract the overlay points to be plotted in this channel
             ovrl = self.overlay(ch=self.ch%self.overlay_n_ch)
             
@@ -564,7 +612,7 @@ class Hyperstack():
         ################
         # Overlay labels
         ################
-        if self.overlay is not None and self.overlay_labels is not None:
+        if self.overlay is not None and self.overlay_labels is not None and self.display_overlay:
             # Remove previous labels
             for t in self.overlay_labels_plot:
                 try:
@@ -587,7 +635,7 @@ class Hyperstack():
             # Add to the plot
             self.overlay_labels_plot = []
             for i in np.arange(len(ovrl_labs)):
-                ann = self.ax.annotate(ovrl_labs[i],
+                ann = self.ax.annotate(ovrl_labs[i].lstrip("0"),
                                        xy=(ovrl[i,-1],ovrl[i,-2]),
                                        xytext=(ovrl[i,-1]+self.overlay_label_dx,
                                                ovrl[i,-2]+self.overlay_label_dy),
@@ -633,7 +681,7 @@ class Hyperstack():
     def onkeypress(self, event):
         self.last_pressed_key = event.key
         
-        if not self.mode_label:
+        if not self.mode_label: # To prevent actions while typing labels
             if event.key == 'h':
                 self.show_instructions()
             elif event.key == 'd' or event.key == 'right':
@@ -683,8 +731,11 @@ class Hyperstack():
                     self.data_min_side2 = self.data_min
                     self.data_max = np.max(np.sum(self.data,axis=0))
                     self.data_min = np.min(np.sum(self.data,axis=0))
-                    
-            elif event.key == 'ctrl+o': # Rename this to select
+            elif event.key == 'alt+o':
+                self.display_overlay = not self.display_overlay
+                if not self.display_overlay: self.hide_overlay()
+                
+            elif event.key == 'ctrl+o': 
                 self.mode_select = not self.mode_select
                 if self.mode_select == True:
                     self.mode_select_plot, = self.ax.plot(
@@ -694,14 +745,17 @@ class Hyperstack():
                 else:
                     self.ax.set_title(self.def_title)
                     
-            if event.key == 'ctrl+p': # Rename this to label
+            elif event.key == 'ctrl+p' and self.overlay is not None:
+                # Label overlay. Enable only if the overlay is not None 
                 self.mode_label = not self.mode_label
                 if self.mode_label == True:
                     self.ax.set_title(
-                                "Select points mode. "+\
-                                "Press ctrl+p to switch back to normal mode.")
-                else:
-                    self.ax.set_title(self.def_title)
+                                "Labeling overlay. "+\
+                                "ctrl+p to switch to normal mode.")
+        
+        elif event.key == 'ctrl+p' and self.overlay is not None:
+            self.mode_label = not self.mode_label
+            if self.mode_label == False: self.ax.set_title(self.def_title)            
                     
         self.update()
         
@@ -730,8 +784,13 @@ class Hyperstack():
                                                 self.selected_points,
                                                 -1,axis=0)
                                                 
-                if self.mode_select:
-                    self.update()
+                elif self.mode_label and event.button == 1:
+                    cl = self.get_closest_point()
+                    lab = input("Label for pt "+str(cl)+" ("+self.manual_labels[cl[0]][cl[1]]+"): ")
+                    self.manual_labels[cl[0]][cl[1]] = lab
+                    self.overlay_labels(ch=cl[0])[cl[1]] = lab
+                
+                self.update()
                 
     def onaxisenter(self,event):
         if self.figure_is_active:
@@ -795,7 +854,7 @@ class Hyperstack():
         if n_dims < 2: print("Throw exception, not an image")
         elif n_dims == 2: self.data = data[None,None,:,:]
         elif n_dims == 3: 
-            if hyperparam is not "c":
+            if hyperparam != "c":
                 self.data = data[:,None,:,:]
             else:
                 self.data = data[None,:,:,:]
@@ -834,6 +893,17 @@ class Hyperstack():
         self.overlay_label_dx = dx
         self.overlay_label_dy = dy
         
+    def hide_overlay(self):
+        if self.overlay is not None:
+            self.overlay_plot.set_xdata([])
+            self.overlay_plot.set_ydata([])
+        if self.overlay_labels is not None:
+            for t in self.overlay_labels_plot:
+                try:
+                    t.remove()
+                except:
+                    pass
+        
     def show_instructions(self):
         self.instructions_shown = not self.instructions_shown
         if self.instructions_shown:
@@ -846,6 +916,14 @@ class Hyperstack():
         else:
             self.im.axes.set_title(self.def_title)
             self.instructions_plot.remove()
+            
+    def toggle_message(self, message=None):
+        self.message_shown = not self.message_shown
+        if self.message_shown: 
+            if message is not None and self.side_views:
+                self.message_plot = self.fig.text(0.5,0.1,message,fontsize=10)
+        else:
+            self.message_plot.remove()
             
     def get_current_point(self):
         return self.current_point
@@ -886,3 +964,6 @@ class Hyperstack():
         
     def get_selected_points(self):
         return self.selected_points
+    
+    def get_manual_labels(self):
+        return self.manual_labels
