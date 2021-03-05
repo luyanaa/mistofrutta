@@ -247,12 +247,12 @@ class polygon:
 def crop_image(im,folder=None,y_axis=2,x_axis=3,return_all=False):
     if folder[-1] != "/": folder+="/"
     if folder is None:
-        rectangle = mf.geometry.draw.rectangle(np.sum(Image,axis=(0,1)))
-        r_c = rectangle.getRectangle()
+        rect = rectangle(np.sum(im,axis=(0,1)))
+        r_c = rect.getRectangle()
     elif not os.path.isfile(folder+'rectangle.txt'):
         print("Select rectangle to crop the image")
-        rectangle = mf.geometry.draw.rectangle(np.sum(Image,axis=(0,1)))
-        r_c = rectangle.getRectangle()
+        rect = rectangle(np.sum(im,axis=(0,1)))
+        r_c = rect.getRectangle()
         np.savetxt(folder+"rectangle.txt",r_c,fmt="%d")
     else:
         r_c = np.loadtxt(folder+"rectangle.txt",dtype=int)

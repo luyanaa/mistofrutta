@@ -242,15 +242,21 @@ class Hyperstack():
     instructions = \
             '\n**INSTRUCTIONS:\n'+\
             'Scroll/up-down to navigate in z\n'+\
-            'A-D/left-right to change channel, W-S to change color scaling \n'+\
-            'Ctrl+p for point labeling \n'+\
-            'Ctrl+o for point marking (without labels)\n'+\
+            'A-D/left-right to change channel\n'+\
+            'W-S to change color scaling \n'+\
+            'Ctrl+p to label points (type label in terminal)\n'+\
+            'Ctrl+o to add points (left click adds, right click removes last)\n'+\
+            'Alt+l to switch between live and static mode \n'+\
+            'Alt+z to switch single planes and z-projection \n'+\
+            'Alt+o to hide/display overlay \n'+\
             'Ctrl+0 minimum of colorscale to 0 (to clip negative values)\n'+\
             'Ctrl+9 minimum of colorscale to original \n'+\
-            'Ctrl+1 minimum of colorscale to 100 (for raw images with no '+\
-            'binning) \n'+\
-            'Ctrl+4 minimum of colorscale to 400 (for raw images with 2x2 '+\
-            'binning: whole brain imager, MCW)'
+            'Ctrl+1 minimum of colorscale to 100 (for raw images with no \n'+\
+            '    binning) \n'+\
+            'Ctrl+4 minimum of colorscale to 400 (for raw images with 2x2 \n'+\
+            '    binning: whole brain imager, MCW)\n'+\
+            'plus any other command implemented in code that interfaces\n'+\
+            '    with the hyperstack'
     
     # Keys for which the default behavior has to be overwritten        
     new_keys_set = {'a', 'd', 'w', 's', 'up', 'down','left','right'}
@@ -738,6 +744,7 @@ class Hyperstack():
             elif event.key == 'ctrl+o': 
                 self.mode_select = not self.mode_select
                 if self.mode_select == True:
+                    self.ax.set_title("Selecting points.")
                     self.mode_select_plot, = self.ax.plot(
                         [],'x',
                         c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
@@ -755,7 +762,7 @@ class Hyperstack():
         
         elif event.key == 'ctrl+p' and self.overlay is not None:
             self.mode_label = not self.mode_label
-            if self.mode_label == False: self.ax.set_title(self.def_title)            
+            if self.mode_label == False: self.ax.set_title(self.def_title)         
                     
         self.update()
         
@@ -907,12 +914,12 @@ class Hyperstack():
     def show_instructions(self):
         self.instructions_shown = not self.instructions_shown
         if self.instructions_shown:
-            self.im.axes.set_title("Press h to hide instructions")
             if not self.side_views:
                 print(self.instructions)
             else:
+                self.im.axes.set_title("Press h to hide instructions")
                 self.instructions_plot = self.fig.text(
-                                        0.5,0.1,self.instructions,fontsize=8)
+                                        0.55,0.18,self.instructions,fontsize=10)
         else:
             self.im.axes.set_title(self.def_title)
             self.instructions_plot.remove()
