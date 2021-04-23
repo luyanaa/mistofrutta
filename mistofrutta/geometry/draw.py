@@ -3,23 +3,25 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.colors
 import shapely.geometry as geom
+import scipy.ndimage
 from matplotlib.widgets import RectangleSelector
 from matplotlib.widgets import PolygonSelector
 from matplotlib.widgets import Slider
 
 class line:
-    def __init__(self, image):
+    def __init__(self, image, verbose=True):
     
         self.X = []
         self.Y = []
     
         # Print instructions for the user
-        print("\nINSTRUCTIONS TO DRAW THE LINE\n\n"+\
-            "Click to add a point. Right-click to delete the last one. \n"+\
-            "***Add one point outside the image in the posterior direction."+\
-            "***\n"+\
-            "Ignore the first point in the corner of the image. \n" +\
-            "Once you're done clicking, simply close the figure window.")    
+        if verbose:
+            print("\nINSTRUCTIONS TO DRAW THE LINE\n\n"+\
+                "Click to add a point. Right-click to delete the last one. \n"+\
+                "***Add one point outside the image in the posterior direction."+\
+                "***\n"+\
+                "Ignore the first point in the corner of the image. \n" +\
+                "Once you're done clicking, simply close the figure window.")    
         
         # Create the figure and plot the image
         fig = plt.figure(1)
@@ -34,17 +36,18 @@ class line:
 
     # Define callback function to be called when there is a mouse click
     def __call__(self, event):
-        ix, iy = event.xdata, event.ydata
-        # If left click, add point, otherwise delete the last one.
-        if (event.button==1):
-            self.X.append(ix)
-            self.Y.append(iy)
-        else:
-            self.X.pop(-1)
-            self.Y.pop(-1)
-        
-        self.line.set_data(self.X, self.Y)
-        self.line.figure.canvas.draw()
+        if plt.get_current_fig_manager().toolbar.mode == '':
+            ix, iy = event.xdata, event.ydata
+            # If left click, add point, otherwise delete the last one.
+            if (event.button==1):
+                self.X.append(ix)
+                self.Y.append(iy)
+            else:
+                self.X.pop(-1)
+                self.Y.pop(-1)
+            
+            self.line.set_data(self.X, self.Y)
+            self.line.figure.canvas.draw()
 
     def getLine(self):
         # Convert to np.array and return    
@@ -244,18 +247,24 @@ class polygon:
     def getPolygon(self):
         return self.verts
         
-def crop_image(im,folder=None,y_axis=2,x_axis=3,return_all=False):
-    if folder[-1] != "/": folder+="/"
+def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,return_all=False,scale=1):
+    if folder is not None: 
+        if folder[-1] != "/": folder+="/"
+        
+    sum_tuple = []
+    for i in np.arange(len(im.shape)):
+        if i!=y_axis and i!=x_axis: sum_tuple.append(i)
+    sum_tuple = tuple(sum_tuple)
     if folder is None:
-        rect = rectangle(np.sum(im,axis=(0,1)))
+        rect = rectangle(np.sum(im,axis=sum_tuple))
         r_c = rect.getRectangle()
-    elif not os.path.isfile(folder+'rectangle.txt'):
+    elif not os.path.isfile(folder+fname):
         print("Select rectangle to crop the image")
-        rect = rectangle(np.sum(im,axis=(0,1)))
+        rect = rectangle(np.sum(im,axis=sum_tuple))
         r_c = rect.getRectangle()
-        np.savetxt(folder+"rectangle.txt",r_c,fmt="%d")
+        np.savetxt(folder+fname,r_c,fmt="%d")
     else:
-        r_c = np.loadtxt(folder+"rectangle.txt",dtype=int)
+        r_c = (np.loadtxt(folder+fname,dtype=int)*scale).astype(int)
     
     #Crop the image
     im = im.take(indices=range(r_c[0,0],r_c[1,0]), axis=y_axis)
@@ -285,3 +294,18 @@ def select_points(points, mask, method='polygon',return_all=False):
         return points_out, bool_mask
     else:
         return points_out
+        
+def img_line_profile(im,xy=None,return_all=False):
+    if xy is None:
+        linea = line(im, verbose=False)
+        xy = linea.getLine()
+    x0, x1 = xy[0,0], xy[1,0]
+    y0, y1 = xy[0,1], xy[1,1]
+    n_pts = int(np.sqrt((x0-x1)**2 + (y0-y1)**2))
+    x, y = np.linspace(x0, x1, n_pts), np.linspace(y0, y1, n_pts)
+    zi = scipy.ndimage.map_coordinates(im, np.vstack((x,y)))
+    
+    if return_all:
+        return zi, xy
+    else:
+        return zi

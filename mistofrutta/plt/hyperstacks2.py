@@ -10,7 +10,8 @@ def hyperstack2(data, color = None, cmap = None,
                hyperparam = None,
                side_views = True,
                plot_now = True, live = False,
-               rgb = False):
+               rgb = False,
+               ext_event_callback = None):
     '''Function to use the Hyperstack class. 
     Parameters
     ----------
@@ -72,7 +73,7 @@ def hyperstack2(data, color = None, cmap = None,
                  overlay = overlay, overlay_labels = overlay_labels,
                  manual_labels=manual_labels, 
                  hyperparam = hyperparam, side_views = side_views,
-                 rgb=rgb)
+                 rgb=rgb, ext_event_callback=ext_event_callback)
     
     # Bind the figure to the interactions events
     fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
@@ -287,11 +288,14 @@ class Hyperstack():
     instructions_shown = False
     message_shown = False
     pause_live_update = False
+    new_action = False
+    last_action = ""
+    ext_event_callback = None
     
     def __init__(self, fig, data, color = None, cmap = None, 
                  overlay = None, overlay_labels = None, manual_labels=None,
-                 hyperparam = None,
-                 side_views = True, rgb = False):
+                 hyperparam = None, side_views = True, rgb = False,
+                 ext_event_callback = None):
         '''Class for plotting the hyperstack-visualization of data.
         Parameters
         ----------
@@ -326,6 +330,8 @@ class Hyperstack():
         -------
         None.
         '''
+        
+        self.ext_event_callback = ext_event_callback
         
         # Don't really remember what this was for.
         pyqtRemoveInputHook()
@@ -394,17 +400,18 @@ class Hyperstack():
         self.z = self.dim[0]//2
         self.ch = 0
         
-        self.scale = np.ones(self.dim[1])
-        self.data_max = np.max(self.data)
-        self.data_min = np.min(self.data)
+        self.scale = np.zeros(self.dim[1])
+        self.scale_min = np.zeros(self.dim[1])
+        self.data_max = np.nanmax(self.data)
+        self.data_min = np.nanmin(self.data)
         self.vmax = self.data_max
         self.vmin = self.data_min
         
         if self.side_views:
-            self.data_max_side1 = np.max(np.sum(self.data,axis=2))
-            self.data_min_side1 = np.min(np.sum(self.data,axis=2))
-            self.data_max_side2 = np.max(np.sum(self.data,axis=3))
-            self.data_min_side2 = np.min(np.sum(self.data,axis=3))
+            self.data_max_side1 = np.nanmax(np.sum(self.data,axis=2))
+            self.data_min_side1 = np.nanmin(np.sum(self.data,axis=2))
+            self.data_max_side2 = np.nanmax(np.sum(self.data,axis=3))
+            self.data_min_side2 = np.nanmin(np.sum(self.data,axis=3))
         
         # overlay must be an irrarray with structure (ch)[i, coord]
         # This ensures that it's still contiguous in memory.
@@ -452,7 +459,7 @@ class Hyperstack():
         # Initialize image plot
         self.im = self.ax.imshow(self.data[self.z,self.ch],
                                  interpolation="none",
-                                 vmin=self.vmin, vmax=self.vmax)
+                                 vmin=self.vmin, vmax=self.vmax, aspect="auto")
                                  
         if self.side_views:
             # Initialize image plot for side views
@@ -534,13 +541,16 @@ class Hyperstack():
         
         dx = abs(self.ax.get_xlim()[1]-self.ax.get_xlim()[0])
         dy = abs(self.ax.get_ylim()[1]-self.ax.get_ylim()[0])
-        self.ax.set_aspect(dx/dy)
+        self.ax.set_aspect("auto")#dx/dy)
             
         self.im.set_cmap(self.cmaps[self.ch % self.n_colors])
         # Adjust scale
-        if self.data_max*self.scale[self.ch] > self.data_min:#self.im.norm.vmin:
-            norm = colors.Normalize(vmin=self.data_min, 
-                                    vmax=self.data_max*self.scale[self.ch])
+        desired_max = self.data_max-(self.data_max-self.data_min)*self.scale[self.ch]
+        desired_min = self.data_min+(self.data_max-self.data_min)*self.scale_min[self.ch]
+        #if self.data_max*self.scale[self.ch] > self.data_min:
+        if desired_max > desired_min:#self.im.norm.vmin:
+            norm = colors.Normalize(vmin=desired_min, 
+                                    vmax=desired_max)
             self.im.set_norm(norm)
         
         ########################
@@ -695,9 +705,13 @@ class Hyperstack():
             elif event.key == 'a' or event.key == 'left':
                 self.ch = (self.ch - 1) % self.dim[1]
             elif event.key == 's':
-                self.scale[self.ch] = min(self.scale[self.ch]*1.3, 1.0)
+                self.scale[self.ch] = max(self.scale[self.ch]-0.05,0.)#min(self.scale[self.ch]*1.3, 1.0)
             elif event.key == 'w':
-                self.scale[self.ch] = max(self.scale[self.ch]*0.7, 0.0001)
+                self.scale[self.ch] = min(self.scale[self.ch]+0.05,1.)#max(self.scale[self.ch]*0.7, 0.0001)
+            elif event.key == 'i':
+                self.scale_min[self.ch] = min(self.scale_min[self.ch]+0.05,1.)
+            elif event.key == 'k':
+                self.scale_min[self.ch] = max(self.scale_min[self.ch]-0.05,0.)
             elif event.key == 'up':
                 self.z = (self.z + 1) % self.dim[0]
             elif event.key == 'down':
@@ -724,19 +738,19 @@ class Hyperstack():
                 
                 # Recalculate data_max and data_min
                 if not self.z_projection:
-                    self.data_max = np.max(self.data)
-                    self.data_min = np.min(self.data)
-                    self.data_max_side1 = np.max(np.sum(self.data,axis=3))
-                    self.data_min_side1 = np.min(np.sum(self.data,axis=3))
-                    self.data_max_side2 = np.max(np.sum(self.data,axis=2))
-                    self.data_min_side2 = np.min(np.sum(self.data,axis=2))
+                    self.data_max = np.nanmax(self.data)
+                    self.data_min = np.nanmin(self.data)
+                    self.data_max_side1 = np.nanmax(np.sum(self.data,axis=3))
+                    self.data_min_side1 = np.nanmin(np.sum(self.data,axis=3))
+                    self.data_max_side2 = np.nanmax(np.sum(self.data,axis=2))
+                    self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2))
                 else:
                     self.data_max_side1 = self.data_max
                     self.data_max_side2 = self.data_max
                     self.data_min_side1 = self.data_min
                     self.data_min_side2 = self.data_min
-                    self.data_max = np.max(np.sum(self.data,axis=0))
-                    self.data_min = np.min(np.sum(self.data,axis=0))
+                    self.data_max = np.nanmax(np.sum(self.data,axis=0))
+                    self.data_min = np.nanmin(np.sum(self.data,axis=0))
             elif event.key == 'alt+o':
                 self.display_overlay = not self.display_overlay
                 if not self.display_overlay: self.hide_overlay()
@@ -796,6 +810,7 @@ class Hyperstack():
                     lab = input("Label for pt "+str(cl)+" ("+self.manual_labels[cl[0]][cl[1]]+"): ")
                     self.manual_labels[cl[0]][cl[1]] = lab
                     self.overlay_labels(ch=cl[0])[cl[1]] = lab
+                    self.set_last_action("labeled:"+",".join([str(_cl) for _cl in cl])+"-"+lab)
                 
                 self.update()
                 
@@ -882,8 +897,8 @@ class Hyperstack():
         self.ch = 0
         
         self.scale = np.ones(self.dim[1])
-        self.data_max = np.max(self.data)
-        self.data_min = np.min(self.data)
+        self.data_max = np.nanmax(self.data)
+        self.data_min = np.nanmin(self.data)
         self.vmax = self.data_max
         self.vmin = self.data_min
         
@@ -974,3 +989,13 @@ class Hyperstack():
     
     def get_manual_labels(self):
         return self.manual_labels
+        
+    def set_last_action(self,action):
+        self.last_action = action
+        self.new_action = True
+        if self.ext_event_callback is not None:
+            self.ext_event_callback(action)
+        
+    def get_last_action(self):
+        self.new_action = False
+        return self.last_action
