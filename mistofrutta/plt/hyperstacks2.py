@@ -11,7 +11,7 @@ def hyperstack2(data, color = None, cmap = None,
                side_views = True,
                plot_now = True, live = False,
                rgb = False,
-               ext_event_callback = None):
+               ext_event_callback = []):
     '''Function to use the Hyperstack class. 
     Parameters
     ----------
@@ -260,7 +260,7 @@ class Hyperstack():
             '    with the hyperstack'
     
     # Keys for which the default behavior has to be overwritten        
-    new_keys_set = {'a', 'd', 'w', 's', 'up', 'down','left','right'}
+    new_keys_set = {'a', 'd', 'w', 's', 'k', 'up', 'down','left','right'}
     
     # Plot properties
     overlay_markersize = 1
@@ -271,6 +271,7 @@ class Hyperstack():
     # Operating modes
     mode_select = False
     mode_label = False
+    mode_typing = False
     active_axis = None
     figure_is_active = True
     
@@ -289,13 +290,14 @@ class Hyperstack():
     message_shown = False
     pause_live_update = False
     new_action = False
+    new_none_action = False
     last_action = ""
-    ext_event_callback = None
+    ext_event_callback = []
     
     def __init__(self, fig, data, color = None, cmap = None, 
                  overlay = None, overlay_labels = None, manual_labels=None,
                  hyperparam = None, side_views = True, rgb = False,
-                 ext_event_callback = None):
+                 ext_event_callback = []):
         '''Class for plotting the hyperstack-visualization of data.
         Parameters
         ----------
@@ -330,7 +332,8 @@ class Hyperstack():
         -------
         None.
         '''
-        
+        if type(ext_event_callback) is not list: 
+            ext_event_callback = [ext_event_callback]
         self.ext_event_callback = ext_event_callback
         
         # Don't really remember what this was for.
@@ -402,16 +405,16 @@ class Hyperstack():
         
         self.scale = np.zeros(self.dim[1])
         self.scale_min = np.zeros(self.dim[1])
-        self.data_max = np.nanmax(self.data)
-        self.data_min = np.nanmin(self.data)
-        self.vmax = self.data_max
-        self.vmin = self.data_min
+        self.data_max = np.nanmax(self.data,axis=(0,2,3))
+        self.data_min = np.nanmin(self.data,axis=(0,2,3))
+        self.vmax = self.data_max[self.ch] if not self.rgb else 1
+        self.vmin = self.data_min[self.ch] if not self.rgb else 1
         
         if self.side_views:
-            self.data_max_side1 = np.nanmax(np.sum(self.data,axis=2))
-            self.data_min_side1 = np.nanmin(np.sum(self.data,axis=2))
-            self.data_max_side2 = np.nanmax(np.sum(self.data,axis=3))
-            self.data_min_side2 = np.nanmin(np.sum(self.data,axis=3))
+            self.data_max_side1 = np.nanmax(np.sum(self.data,axis=2),axis=(0,2))
+            self.data_min_side1 = np.nanmin(np.sum(self.data,axis=2),axis=(0,2))
+            self.data_max_side2 = np.nanmax(np.sum(self.data,axis=3),axis=(0,2))
+            self.data_min_side2 = np.nanmin(np.sum(self.data,axis=3),axis=(0,2))
         
         # overlay must be an irrarray with structure (ch)[i, coord]
         # This ensures that it's still contiguous in memory.
@@ -455,11 +458,16 @@ class Hyperstack():
             self.overlay_labels_dy = int(self.data.shape[-1]/100)
         else:
             self.overlay_labels = None
+            
+            
+        # Initialize selected points
+        self.selected_points = np.zeros((0,4))
+        self.selected_points_labels = []
         
         # Initialize image plot
         self.im = self.ax.imshow(self.data[self.z,self.ch],
-                                 interpolation="none",
-                                 vmin=self.vmin, vmax=self.vmax, aspect="auto")
+                                 interpolation="none", aspect="auto",
+                                 vmin=self.vmin, vmax=self.vmax)
                                  
         if self.side_views:
             # Initialize image plot for side views
@@ -519,11 +527,21 @@ class Hyperstack():
         if self.overlay is not None and self.overlay_labels is not None:
             ann = self.ax.annotate(".",xy=(0,0),xytext=(0,0),color="k")
             self.overlay_labels_plot = [ann]
+            
+            
+        # Initialize selected points plot
+        self.mode_select_plot, = self.ax.plot(
+                    [],'x',
+                    c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
+        
+        # Initialize selected point labels plot
+        ann_sel = self.ax.annotate(".",xy=(0,0),xytext=(0,0),color="k")
+        self.selected_points_labels_plot = [ann_sel]
         
         self.fig.tight_layout(pad=1.5, w_pad=1.5, h_pad=1.5)
         self.update()
         
-    def update(self, live = False, refresh_time=0.1):
+    def update(self, live = False, refresh_time=0.1, *args, **kwargs):
         
         ############
         # Main image
@@ -542,16 +560,17 @@ class Hyperstack():
         dx = abs(self.ax.get_xlim()[1]-self.ax.get_xlim()[0])
         dy = abs(self.ax.get_ylim()[1]-self.ax.get_ylim()[0])
         self.ax.set_aspect("auto")#dx/dy)
-            
-        self.im.set_cmap(self.cmaps[self.ch % self.n_colors])
-        # Adjust scale
-        desired_max = self.data_max-(self.data_max-self.data_min)*self.scale[self.ch]
-        desired_min = self.data_min+(self.data_max-self.data_min)*self.scale_min[self.ch]
-        #if self.data_max*self.scale[self.ch] > self.data_min:
-        if desired_max > desired_min:#self.im.norm.vmin:
-            norm = colors.Normalize(vmin=desired_min, 
-                                    vmax=desired_max)
-            self.im.set_norm(norm)
+        
+        if not self.rgb:    
+            self.im.set_cmap(self.cmaps[self.ch % self.n_colors])
+            # Adjust scale
+            desired_max = self.data_max[self.ch]-(self.data_max[self.ch]-self.data_min[self.ch])*self.scale[self.ch]
+            desired_min = self.data_min[self.ch]+(self.data_max[self.ch]-self.data_min[self.ch])*self.scale_min[self.ch]
+            #if self.data_max*self.scale[self.ch] > self.data_min:
+            if desired_max > desired_min:#self.im.norm.vmin:
+                norm = colors.Normalize(vmin=desired_min, 
+                                        vmax=desired_max)
+                self.im.set_norm(norm)
         
         ########################
         # Side views, if present
@@ -593,13 +612,14 @@ class Hyperstack():
             self.im1_axhline.set_data([0,self.dim[2]],[z,z])
             self.im1_axvline.set_data([x,x],[0,self.dim[0]])
                 
-            # Adjust scale
-            norm1 = colors.Normalize(vmin=self.data_min_side1,
-                                     vmax=self.data_max_side1)
-            norm2 = colors.Normalize(vmin=self.data_min_side2,
-                                     vmax=self.data_max_side2)
-            self.im1.set_norm(norm1)
-            self.im2.set_norm(norm2)
+            if not self.rgb:
+                # Adjust scale
+                norm1 = colors.Normalize(vmin=self.data_min_side1[self.ch],
+                                         vmax=self.data_max_side1[self.ch])
+                norm2 = colors.Normalize(vmin=self.data_min_side2[self.ch],
+                                         vmax=self.data_max_side2[self.ch])
+                self.im1.set_norm(norm1)
+                self.im2.set_norm(norm2)
             
             self.im1.axes.set_xlim(0,max(self.dim[0]-1,0.5))
             self.im1.axes.set_ylim(self.im.axes.get_ylim())
@@ -614,7 +634,7 @@ class Hyperstack():
             ovrl = self.overlay(ch=self.ch%self.overlay_n_ch)
             
             # Extract the points to be plotted in this slice.
-            if ovrl.shape[1] == 3:
+            if ovrl.shape[1] == 3 and not self.z_projection:
                 ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
             else:
                 pass
@@ -640,7 +660,7 @@ class Hyperstack():
             ovrl_labs = self.overlay_labels(ch=self.ch%self.overlay_n_ch)
             
             # Extract the points to be plotted in this slice.
-            if self.overlay.shape[-1] == 3:
+            if self.overlay.shape[-1] == 3 and not self.z_projection:
                 ovrl = self.overlay(ch=self.ch%self.overlay_n_ch)
                 ovrl_labs = ovrl_labs[np.where(ovrl[:,0]==self.z%self.dim[0])]
                 ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
@@ -663,7 +683,7 @@ class Hyperstack():
         #################
         # SELECTED POINTS
         #################
-        if self.mode_select and self.selected_points.shape[0] > 0:
+        if self.selected_points.shape[0] > 0:
             sel_pts = self.selected_points[np.where(
                                 (self.selected_points[:,0] == self.z)*(self.selected_points[:,1] == self.ch))]
             
@@ -676,11 +696,38 @@ class Hyperstack():
         elif self.mode_select and self.selected_points.shape[0] == 0:
             self.mode_select_plot.set_xdata(-1)
             self.mode_select_plot.set_ydata(-1)
+            
+        # Selected points labels
+        if self.display_overlay:
+            # Remove previous labels
+            for t in self.selected_points_labels_plot:
+                try:
+                    t.remove()
+                except:
+                    pass
+            
+            indices = np.where((self.selected_points[:,0]==self.z)*(self.selected_points[:,1]==self.ch))
+            slpts = self.selected_points[indices]
+            slpts_labs = np.array(self.selected_points_labels)[indices]
+            
+            # Add to the plot
+            self.selected_points_labels_plot = []
+            for i in np.arange(len(slpts_labs)):
+                ann = self.ax.annotate(slpts_labs[i].lstrip("0"),
+                                       xy=(slpts[i,-1],ovrl[i,-2]),
+                                       xytext=(slpts[i,-1]+self.overlay_label_dx,
+                                               slpts[i,-2]+self.overlay_label_dy),
+                                       color=self.good_overlay_colors[
+                                                self.ch%self.n_overlay_colors],
+                                       fontsize=8)
+                self.selected_points_labels_plot.append(ann)
         
         ########
         # Redraw
         ########
         self.fig.canvas.draw()
+        
+        self.set_last_action(None)
         
         if live:
             self.fig.canvas.start_event_loop(refresh_time)
@@ -697,7 +744,7 @@ class Hyperstack():
     def onkeypress(self, event):
         self.last_pressed_key = event.key
         
-        if not self.mode_label: # To prevent actions while typing labels
+        if not self.mode_typing: # To prevent actions while typing labels
             if event.key == 'h':
                 self.show_instructions()
             elif event.key == 'd' or event.key == 'right':
@@ -738,31 +785,28 @@ class Hyperstack():
                 
                 # Recalculate data_max and data_min
                 if not self.z_projection:
-                    self.data_max = np.nanmax(self.data)
-                    self.data_min = np.nanmin(self.data)
-                    self.data_max_side1 = np.nanmax(np.sum(self.data,axis=3))
-                    self.data_min_side1 = np.nanmin(np.sum(self.data,axis=3))
-                    self.data_max_side2 = np.nanmax(np.sum(self.data,axis=2))
-                    self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2))
+                    self.data_max = np.nanmax(self.data,axis=(0,2,3))
+                    self.data_min = np.nanmin(self.data,axis=(0,2,3))
+                    self.data_max_side1 = np.nanmax(np.sum(self.data,axis=3),axis=(0,2))
+                    self.data_min_side1 = np.nanmin(np.sum(self.data,axis=3),axis=(0,2))
+                    self.data_max_side2 = np.nanmax(np.sum(self.data,axis=2),axis=(0,2))
+                    self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2),axis=(0,2))
                 else:
                     self.data_max_side1 = self.data_max
                     self.data_max_side2 = self.data_max
                     self.data_min_side1 = self.data_min
                     self.data_min_side2 = self.data_min
-                    self.data_max = np.nanmax(np.sum(self.data,axis=0))
-                    self.data_min = np.nanmin(np.sum(self.data,axis=0))
+                    self.data_max = np.nanmax(np.sum(self.data,axis=0),axis=(1,2))
+                    self.data_min = np.nanmin(np.sum(self.data,axis=0),axis=(1,2))
             elif event.key == 'alt+o':
                 self.display_overlay = not self.display_overlay
                 if not self.display_overlay: self.hide_overlay()
                 
             elif event.key == 'ctrl+o': 
                 self.mode_select = not self.mode_select
-                if self.mode_select == True:
+                if self.mode_select == True: 
+                    self.mode_label = False
                     self.ax.set_title("Selecting points.")
-                    self.mode_select_plot, = self.ax.plot(
-                        [],'x',
-                        c=self.good_overlay_colors[self.ch%self.n_overlay_colors])
-                    self.selected_points = np.zeros((0,4))
                 else:
                     self.ax.set_title(self.def_title)
                     
@@ -770,13 +814,16 @@ class Hyperstack():
                 # Label overlay. Enable only if the overlay is not None 
                 self.mode_label = not self.mode_label
                 if self.mode_label == True:
+                    self.mode_select = False
                     self.ax.set_title(
                                 "Labeling overlay. "+\
-                                "ctrl+p to switch to normal mode.")
+                                "ctrl+p to switch to normal mode.\n"+\
+                                "After clicking a point, insert input on terminal")
+                else: self.ax.set_title(self.def_title) 
         
-        elif event.key == 'ctrl+p' and self.overlay is not None:
-            self.mode_label = not self.mode_label
-            if self.mode_label == False: self.ax.set_title(self.def_title)         
+        #elif event.key == 'ctrl+p' and self.overlay is not None:
+        #    self.mode_label = not self.mode_label
+        #    if self.mode_label == False: self.ax.set_title(self.def_title)          
                     
         self.update()
         
@@ -798,19 +845,34 @@ class Hyperstack():
                     self.selected_points = np.append(
                                             self.selected_points,
                                             [self.current_point], axis=0)
+                    self.selected_points_labels.append("")                        
+                    self.set_last_action("point_added")
                 elif self.mode_select and event.button == 3:
                     # Delete last point
                     if self.selected_points.shape[0] > 0:
                         self.selected_points = np.delete(
                                                 self.selected_points,
                                                 -1,axis=0)
+                        self.selected_points_labels.pop(-1)
+                        self.set_last_action("point_deleted")
                                                 
                 elif self.mode_label and event.button == 1:
-                    cl = self.get_closest_point()
-                    lab = input("Label for pt "+str(cl)+" ("+self.manual_labels[cl[0]][cl[1]]+"): ")
-                    self.manual_labels[cl[0]][cl[1]] = lab
-                    self.overlay_labels(ch=cl[0])[cl[1]] = lab
-                    self.set_last_action("labeled:"+",".join([str(_cl) for _cl in cl])+"-"+lab)
+                    self.mode_typing = True
+                    cl, in_selected = self.get_closest_point(include_selected_points=True)
+                    if not in_selected:
+                        lab = input("Label for pt "+str(cl)+" (blank to keep "+self.manual_labels[cl[0]][cl[1]]+"): ")
+                        if lab!="": self.manual_labels[cl[0]][cl[1]] = lab
+                        else: lab = self.manual_labels[cl[0]][cl[1]]
+                        self.overlay_labels(ch=cl[0])[cl[1]] = lab
+                        self.set_last_action("point_labeled:"+",".join([str(_cl) for _cl in cl])+"-"+lab)
+                    else:
+                        i_in_selected = cl[1]
+                        cl[1] += len(self.overlay_labels(ch=cl[0]))
+                        lab = input("Label for pt "+str(cl)+" (blank to keep "+self.selected_points_labels[i_in_selected]+"): ")
+                        if lab!="": self.selected_points_labels[i_in_selected] = lab
+                        self.set_last_action("point_labeled:"+",".join([str(_cl) for _cl in cl])+"-"+lab)
+                    
+                    self.mode_typing = False
                 
                 self.update()
                 
@@ -897,16 +959,16 @@ class Hyperstack():
         self.ch = 0
         
         self.scale = np.ones(self.dim[1])
-        self.data_max = np.nanmax(self.data)
-        self.data_min = np.nanmin(self.data)
-        self.vmax = self.data_max
-        self.vmin = self.data_min
+        self.data_max = np.nanmax(self.data,axis=(0,2,3))
+        self.data_min = np.nanmin(self.data,axis=(0,2,3))
+        self.vmax = self.data_max[self.ch]
+        self.vmin = self.data_min[self.ch]
         
         if self.side_views:
-            self.data_max_side1 = np.max(np.sum(self.data,axis=2))
-            self.data_min_side1 = np.min(np.sum(self.data,axis=2))
-            self.data_max_side2 = np.max(np.sum(self.data,axis=3))
-            self.data_min_side2 = np.min(np.sum(self.data,axis=3))
+            self.data_max_side1 = np.max(np.sum(self.data,axis=2),axis=(0,2))
+            self.data_min_side1 = np.min(np.sum(self.data,axis=2),axis=(0,2))
+            self.data_max_side2 = np.max(np.sum(self.data,axis=3),axis=(0,2))
+            self.data_min_side2 = np.min(np.sum(self.data,axis=3),axis=(0,2))
     
     def set_overlay_markersize(self,markersize):
         self.overlay_markersize = markersize
@@ -956,7 +1018,7 @@ class Hyperstack():
     def get_active_axis(self):
         return self.active_axis
         
-    def get_closest_point(self):
+    def get_closest_point(self,include_selected_points=False):
         '''Get overlay point closest to last click.
         
         Returns
@@ -977,12 +1039,27 @@ class Hyperstack():
         if len(ovrl)>0:
             D = np.sum(np.power(pt - ovrl,2),axis=-1)
             match = np.argmin(D)
+            Dmin = D[match]
         else:
             match = 0
+            
+        in_selected = False
+        if include_selected_points and self.selected_points.shape[0]>0:
+            pt = np.array([self.current_point[2],
+                            self.current_point[3]])
+            slpts = self.selected_points[np.where(self.selected_points[:,1]==self.ch)]
+            D2 = np.sum(np.power(pt-slpts[:,2:],2),axis=-1)
+            match2 = np.argmin(D2)
+            D2min = D2[match2]
+            
+            if D2min<Dmin:
+                match = match2
+                in_selected = True
         
         closest_point = np.array([self.ch%self.overlay_n_ch,match])
         
-        return closest_point
+        if not include_selected_points: return closest_point
+        else: return closest_point, in_selected
         
     def get_selected_points(self):
         return self.selected_points
@@ -991,10 +1068,13 @@ class Hyperstack():
         return self.manual_labels
         
     def set_last_action(self,action):
-        self.last_action = action
-        self.new_action = True
-        if self.ext_event_callback is not None:
-            self.ext_event_callback(action)
+        if action is not None:
+            self.last_action = action
+            self.new_action = True
+        else:
+            self.new_none_action = True
+        for clbck in self.ext_event_callback:
+            clbck(action)
         
     def get_last_action(self):
         self.new_action = False
