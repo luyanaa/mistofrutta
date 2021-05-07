@@ -354,6 +354,7 @@ class Hyperstack():
             self.ax = self.fig.add_subplot(221)
             self.ax1 = self.fig.add_subplot(222, sharey=self.ax)
             self.ax2 = self.fig.add_subplot(223, sharex=self.ax)
+            
         self.ax.set_title(self.def_title)
         
         # Prepare matplotlib to accept the new commands you set
@@ -409,6 +410,10 @@ class Hyperstack():
         self.z = self.dim[0]//2
         self.ch = 0
         
+        self.channel_titles = ["" for i in np.arange(self.dim[1])]
+        if self.channel_titles[self.ch]!="":
+            self.def_title_with_descr += "| "+self.channel_titles[self.ch]
+            
         self.scale = np.zeros(self.dim[1])
         self.scale_min = np.zeros(self.dim[1])
         self.data_max = np.nanmax(self.data,axis=(0,2,3))
@@ -549,19 +554,24 @@ class Hyperstack():
         self.update()
         
     def update(self, live = False, refresh_time=0.1, *args, **kwargs):
-        
         ############
         # Main image
         ############
+        # Channel description
+        if self.channel_titles[self.ch]!="":
+            ch_descr = self.channel_titles[self.ch]
+        else:
+            ch_descr = str(self.ch)
+        
         if not self.z_projection:
             self.im.set_data(self.data[self.z,self.ch])
-            self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+str(self.ch))
+            self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+ch_descr)
         else:
             if not self.rgb:
                 self.im.set_data(np.sum(self.data[:,self.ch],axis=0))
             else:
                 self.im.set_data(np.max(self.data[:,self.ch],axis=0))
-            self.ax.set_xlabel("x (z projection) of channel "+str(self.ch))
+            self.ax.set_xlabel("x (z projection) of channel "+ch_descr)
         self.ax.set_ylabel("y")
         
         dx = abs(self.ax.get_xlim()[1]-self.ax.get_xlim()[0])
@@ -829,7 +839,7 @@ class Hyperstack():
                                 "Labeling overlay. "+\
                                 "ctrl+p to switch to normal mode.\n"+\
                                 "After clicking a point, insert input on terminal")
-                else: self.ax.set_title(self.def_title) 
+                else: self.ax.set_title(self.def_title)   
         
         #elif event.key == 'ctrl+p' and self.overlay is not None:
         #    self.mode_label = not self.mode_label
@@ -1008,7 +1018,7 @@ class Hyperstack():
                 self.instructions_plot = self.fig.text(
                                         0.55,0.18,self.instructions,fontsize=10)
         else:
-            self.im.axes.set_title(self.def_title)
+            self.im.axes.set_title(self.def_title_with_descr)
             self.instructions_plot.remove()
             
     def toggle_message(self, message=None):
