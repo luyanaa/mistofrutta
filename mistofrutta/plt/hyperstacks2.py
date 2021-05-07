@@ -250,9 +250,10 @@ class Hyperstack():
             '\tCtrl+p to label points (type label in terminal)\n'+\
             '\tCtrl+o to add points (left click adds, right click removes last)\n'+\
             'Alt+ combinations control visualization modes\n'+\
-            '\tAlt+l to switch between live and static mode \n'+\
-            '\tAlt+z to switch single planes and z-projection \n'+\
+            '\tAlt+z to toggle between single plane and z-projection \n'+\
             '\tAlt+o to hide/display overlay \n'+\
+            '\tAlt+a to toggle between \'equal\' and \'auto\' aspect ratio\n'+\
+            '\tAlt+l to switch between live and static mode \n'+\
             '\tAlt+0 minimum of colorscale to 0 (to clip negative values)\n'+\
             '\tAlt+9 minimum of colorscale to original \n'+\
             '\tAlt+1 minimum of colorscale to 100 (for raw images with no \n'+\
@@ -343,6 +344,8 @@ class Hyperstack():
         pyqtRemoveInputHook()
         
         self.side_views = side_views
+        if not self.side_views: 
+            self.def_title = self.def_title[:-1] + " in terminal."
         self.rgb = rgb
         self.fig = fig
         if not side_views:
