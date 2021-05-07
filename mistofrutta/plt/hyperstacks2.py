@@ -242,20 +242,23 @@ class Hyperstack():
     def_title = "Press h for instructions."
     instructions = \
             '\n**INSTRUCTIONS:\n'+\
-            'Scroll/up-down to navigate in z\n'+\
-            'A-D/left-right to change channel\n'+\
-            'W-S to change color scaling \n'+\
-            'Ctrl+p to label points (type label in terminal)\n'+\
-            'Ctrl+o to add points (left click adds, right click removes last)\n'+\
-            'Alt+l to switch between live and static mode \n'+\
-            'Alt+z to switch single planes and z-projection \n'+\
-            'Alt+o to hide/display overlay \n'+\
-            'Ctrl+0 minimum of colorscale to 0 (to clip negative values)\n'+\
-            'Ctrl+9 minimum of colorscale to original \n'+\
-            'Ctrl+1 minimum of colorscale to 100 (for raw images with no \n'+\
-            '    binning) \n'+\
-            'Ctrl+4 minimum of colorscale to 400 (for raw images with 2x2 \n'+\
-            '    binning: whole brain imager, MCW)\n'+\
+            'Basic controls\n'+\
+            '\tScroll mouse wheel or up-down arrows to navigate in z\n'+\
+            '\tA-D or left-right arrows to change channel\n'+\
+            '\tW-S to change color scaling \n'+\
+            'Ctrl+ combinations control operating modes\n'+\
+            '\tCtrl+p to label points (type label in terminal)\n'+\
+            '\tCtrl+o to add points (left click adds, right click removes last)\n'+\
+            'Alt+ combinations control visualization modes\n'+\
+            '\tAlt+l to switch between live and static mode \n'+\
+            '\tAlt+z to switch single planes and z-projection \n'+\
+            '\tAlt+o to hide/display overlay \n'+\
+            '\tAlt+0 minimum of colorscale to 0 (to clip negative values)\n'+\
+            '\tAlt+9 minimum of colorscale to original \n'+\
+            '\tAlt+1 minimum of colorscale to 100 (for raw images with no \n'+\
+            '\t    binning) \n'+\
+            '\tAlt+4 minimum of colorscale to 400 (for raw images with 2x2 \n'+\
+            '\t    binning: whole brain imager, MCW/neuropal in WBI room)\n'+\
             'plus any other command implemented in code that interfaces\n'+\
             '    with the hyperstack'
     
@@ -292,7 +295,6 @@ class Hyperstack():
     new_action = False
     new_none_action = False
     last_action = ""
-    ext_event_callback = []
     
     def __init__(self, fig, data, color = None, cmap = None, 
                  overlay = None, overlay_labels = None, manual_labels=None,
@@ -332,6 +334,7 @@ class Hyperstack():
         -------
         None.
         '''
+        self.ext_event_callback = []
         if type(ext_event_callback) is not list: 
             ext_event_callback = [ext_event_callback]
         self.ext_event_callback = ext_event_callback
@@ -409,6 +412,7 @@ class Hyperstack():
         self.data_min = np.nanmin(self.data,axis=(0,2,3))
         self.vmax = self.data_max[self.ch] if not self.rgb else 1
         self.vmin = self.data_min[self.ch] if not self.rgb else 1
+        self.im_aspect = "auto"
         
         if self.side_views:
             self.data_max_side1 = np.nanmax(np.sum(self.data,axis=2),axis=(0,2))
@@ -466,7 +470,7 @@ class Hyperstack():
         
         # Initialize image plot
         self.im = self.ax.imshow(self.data[self.z,self.ch],
-                                 interpolation="none", aspect="auto",
+                                 interpolation="none", aspect=self.im_aspect,
                                  vmin=self.vmin, vmax=self.vmax)
                                  
         if self.side_views:
@@ -559,7 +563,7 @@ class Hyperstack():
         
         dx = abs(self.ax.get_xlim()[1]-self.ax.get_xlim()[0])
         dy = abs(self.ax.get_ylim()[1]-self.ax.get_ylim()[0])
-        self.ax.set_aspect("auto")#dx/dy)
+        self.ax.set_aspect(self.im_aspect)#dx/dy)#auto
         
         if not self.rgb:    
             self.im.set_cmap(self.cmaps[self.ch % self.n_colors])
@@ -763,13 +767,13 @@ class Hyperstack():
                 self.z = (self.z + 1) % self.dim[0]
             elif event.key == 'down':
                 self.z = (self.z - 1) % self.dim[0]
-            elif event.key == 'ctrl+0':
+            elif event.key == 'alt+0':
                 self.im.norm.vmin = 0
-            elif event.key == 'ctrl+9':
+            elif event.key == 'alt+9':
                 self.im.norm.vmin = self.data_min
-            elif event.key == 'ctrl+1':
+            elif event.key == 'alt+1':
                 self.im.norm.vmin = 100
-            elif event.key == 'ctrl+4':
+            elif event.key == 'alt+4':
                 self.im.norm.vmin = 400
             elif event.key == 'alt+l':
                 # Toggle live update
@@ -801,6 +805,9 @@ class Hyperstack():
             elif event.key == 'alt+o':
                 self.display_overlay = not self.display_overlay
                 if not self.display_overlay: self.hide_overlay()
+                
+            elif event.key == 'alt+a':
+                self.im_aspect = 'auto' if self.im_aspect == "equal" else "equal"
                 
             elif event.key == 'ctrl+o': 
                 self.mode_select = not self.mode_select
