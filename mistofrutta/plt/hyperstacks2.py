@@ -244,8 +244,8 @@ class Hyperstack():
             '\n**INSTRUCTIONS:\n'+\
             'Basic controls\n'+\
             '\tScroll mouse wheel or up-down arrows to navigate in z\n'+\
-            '\tA-D or left-right arrows to change channel\n'+\
-            '\tW-S to change color scaling \n'+\
+            '\ta-d or left-right arrows to change channel\n'+\
+            '\tw-s to change color scaling \n'+\
             'Ctrl+ combinations control operating modes\n'+\
             '\tCtrl+p to label points (type label in terminal)\n'+\
             '\tCtrl+o to add points (left click adds, right click removes last)\n'+\
