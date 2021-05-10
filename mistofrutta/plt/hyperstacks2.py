@@ -4,6 +4,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.colors as colors
 from PyQt5.QtCore import pyqtRemoveInputHook
 import string
+import sys, termios
 
 def hyperstack2(data, color = None, cmap = None,
                overlay = None, overlay_labels = None, manual_labels=None,
@@ -84,6 +85,17 @@ def hyperstack2(data, color = None, cmap = None,
     fig.canvas.mpl_connect('figure_leave_event', iperpila.onfigureleave)
     fig.canvas.mpl_connect('close_event', iperpila.onclose)
     
+    # Find the zoom and pan buttons and connect respective events
+    actions = fig.canvas.manager.toolbar.actions()
+    n_a = len(actions)
+    for i_a in np.arange(n_a):
+        if actions[i_a].text() == "Pan": 
+            pan_action = fig.canvas.manager.toolbar.actions()[i_a]
+            pan_action.toggled.connect(iperpila.onpantoggle)   
+        if actions[i_a].text() == "Zoom": 
+            zoom_action = fig.canvas.manager.toolbar.actions()[i_a]
+            zoom_action.toggled.connect(iperpila.onzoomtoggle)   
+     
     # If no live mode has been requested and no plot_now, plot and block.
     if live == False and plot_now == True:
         plt.show()
@@ -354,8 +366,9 @@ class Hyperstack():
             self.ax = self.fig.add_subplot(221)
             self.ax1 = self.fig.add_subplot(222, sharey=self.ax)
             self.ax2 = self.fig.add_subplot(223, sharex=self.ax)
-            
-        self.ax.set_title(self.def_title)
+        
+        self.ax_title_locked = False    
+        self.set_ax_title(self.def_title)
         
         # Prepare matplotlib to accept the new commands you set
         override_default_keys(self.new_keys_set)
@@ -409,6 +422,8 @@ class Hyperstack():
         # Initialize current positions.
         self.z = self.dim[0]//2
         self.ch = 0
+        
+        self.z_descr = ""
         
         self.channel_titles = ["" for i in np.arange(self.dim[1])]
         if self.channel_titles[self.ch]!="":
@@ -565,7 +580,8 @@ class Hyperstack():
         
         if not self.z_projection:
             self.im.set_data(self.data[self.z,self.ch])
-            self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+ch_descr)
+            self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+ch_descr+\
+                                " | "+self.z_descr)
         else:
             if not self.rgb:
                 self.im.set_data(np.sum(self.data[:,self.ch],axis=0))
@@ -826,20 +842,20 @@ class Hyperstack():
                 self.mode_select = not self.mode_select
                 if self.mode_select == True: 
                     self.mode_label = False
-                    self.ax.set_title("Selecting points.")
+                    self.set_ax_title("Selecting points.")
                 else:
-                    self.ax.set_title(self.def_title)
+                    self.set_ax_title(self.def_title)
                     
             elif event.key == 'ctrl+p' and self.overlay is not None:
                 # Label overlay. Enable only if the overlay is not None 
                 self.mode_label = not self.mode_label
                 if self.mode_label == True:
                     self.mode_select = False
-                    self.ax.set_title(
+                    self.set_ax_title(
                                 "Labeling overlay. "+\
                                 "ctrl+p to switch to normal mode.\n"+\
                                 "After clicking a point, insert input on terminal")
-                else: self.ax.set_title(self.def_title)   
+                else: self.set_ax_title(self.def_title)   
         
         #elif event.key == 'ctrl+p' and self.overlay is not None:
         #    self.mode_label = not self.mode_label
@@ -848,7 +864,7 @@ class Hyperstack():
         self.update()
         
     def onbuttonpress(self, event):
-        if plt.get_current_fig_manager().toolbar.mode == '':
+        if self.fig.canvas.toolbar.mode == '':
             ix, iy = event.xdata, event.ydata
             self.last_clicked_point[0] = iy
             self.last_clicked_point[1] = ix
@@ -880,6 +896,7 @@ class Hyperstack():
                     self.mode_typing = True
                     cl, in_selected = self.get_closest_point(include_selected_points=True)
                     if not in_selected:
+                        termios.tcflush(sys.stdin, termios.TCIOFLUSH)
                         lab = input("Label for pt "+str(cl)+" (blank to keep "+self.manual_labels[cl[0]][cl[1]]+"): ")
                         if lab!="": self.manual_labels[cl[0]][cl[1]] = lab
                         else: lab = self.manual_labels[cl[0]][cl[1]]
@@ -888,13 +905,15 @@ class Hyperstack():
                     else:
                         i_in_selected = cl[1]
                         cl[1] += len(self.overlay_labels(ch=cl[0]))
-                        lab = input("Label for pt "+str(cl)+" (blank to keep "+self.selected_points_labels[i_in_selected]+"): ")
+                        termios.tcflush(sys.stdin, termios.TCIOFLUSH)
+                        lab = input("\rLabel for pt "+str(cl)+" (blank to keep "+self.selected_points_labels[i_in_selected]+"): ")
                         if lab!="": self.selected_points_labels[i_in_selected] = lab
                         self.set_last_action("point_labeled:"+",".join([str(_cl) for _cl in cl])+"-"+lab)
                     
                     self.mode_typing = False
-                
                 self.update()
+        #elif self.fig.canvas.toolbar.mode != '' and (self.mode_label or self.mode_select):
+        #    print("Unselect toolbar button (zoom/pan) to label or select points.")
                 
     def onaxisenter(self,event):
         if self.figure_is_active:
@@ -908,6 +927,30 @@ class Hyperstack():
     
     def onclose(self,event):
         self.has_been_closed = True
+        
+    def onpantoggle(self,event):
+        if event:
+            self.ax.set_title("Image pan selected. Unselect it to label/select points.")
+            self.ax_title_locked = True
+        elif self.fig.canvas.toolbar.mode == '':
+            # Only reset the actual title if no other tool is active.
+            # Otherwise, when pan is unselected by clicking on zoom (or vice 
+            # versa), this will undo the title setting of the other callback.
+            self.ax.set_title(self.current_title) 
+            self.ax_title_locked = False
+        self.update()
+        
+    def onzoomtoggle(self,event):
+        if event:
+            self.ax.set_title("Image zoom selected. Unselect it to label/select points.")
+            self.ax_title_locked = True
+        elif self.fig.canvas.toolbar.mode == '':
+            # Only reset the actual title if no other tool is active.
+            # Otherwise, when pan is unselected by clicking on zoom (or vice 
+            # versa), this will undo the title setting of the other callback.
+            self.ax.set_title(self.current_title) 
+            self.ax_title_locked = False
+        self.update()
         
     def create_additional_plot(self):
         try:
@@ -996,6 +1039,11 @@ class Hyperstack():
     def set_overlay_label_displacement(self,dx,dy):
         self.overlay_label_dx = dx
         self.overlay_label_dy = dy
+        
+    def set_ax_title(self,title):
+        if not self.ax_title_locked:
+            self.ax.set_title(title)
+        self.current_title = title
         
     def hide_overlay(self):
         if self.overlay is not None:
