@@ -2,9 +2,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.colors as colors
+from matplotlib.backend_tools import ToolToggleBase
 from PyQt5.QtCore import pyqtRemoveInputHook
+from PyQt5.QtWidgets import QAction
 import string
 import sys, termios
+
+class LabelTool(ToolToggleBase):
+    default_keymap = 'ctrl+p'
+    description = 'Label'
+    default_toggled = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def enable(self, *args):
+        self.labeling = True
+
+    def disable(self, *args):
+        self.labeling = False
 
 def hyperstack2(data, color = None, cmap = None,
                overlay = None, overlay_labels = None, manual_labels=None,
@@ -95,6 +111,21 @@ def hyperstack2(data, color = None, cmap = None,
         if actions[i_a].text() == "Zoom": 
             zoom_action = fig.canvas.manager.toolbar.actions()[i_a]
             zoom_action.toggled.connect(iperpila.onzoomtoggle)   
+            
+    # Add buttons    
+    label_action = QAction("Label", fig.canvas)
+    label_action.setStatusTip("Labeling mode")
+    label_action.triggered.connect(iperpila.onlabeltooltoggle)
+    label_action.setCheckable(True)
+    fig.canvas.manager.toolbar.addAction(label_action)
+    
+    select_action = QAction("Select", fig.canvas)
+    select_action.setStatusTip("Selection mode")
+    select_action.triggered.connect(iperpila.onselecttooltoggle)
+    select_action.setCheckable(True)
+    fig.canvas.manager.toolbar.addAction(select_action)
+    
+    iperpila.extra_actions = {"label":label_action, "select": select_action}
      
     # If no live mode has been requested and no plot_now, plot and block.
     if live == False and plot_now == True:
@@ -839,23 +870,10 @@ class Hyperstack():
                 self.im_aspect = 'auto' if self.im_aspect == "equal" else "equal"
                 
             elif event.key == 'ctrl+o': 
-                self.mode_select = not self.mode_select
-                if self.mode_select == True: 
-                    self.mode_label = False
-                    self.set_ax_title("Selecting points.")
-                else:
-                    self.set_ax_title(self.def_title)
+                self.toggle_mode_select()
                     
             elif event.key == 'ctrl+p' and self.overlay is not None:
-                # Label overlay. Enable only if the overlay is not None 
-                self.mode_label = not self.mode_label
-                if self.mode_label == True:
-                    self.mode_select = False
-                    self.set_ax_title(
-                                "Labeling overlay. "+\
-                                "ctrl+p to switch to normal mode.\n"+\
-                                "After clicking a point, insert input on terminal")
-                else: self.set_ax_title(self.def_title)   
+                self.toggle_mode_label()
         
         #elif event.key == 'ctrl+p' and self.overlay is not None:
         #    self.mode_label = not self.mode_label
@@ -951,6 +969,12 @@ class Hyperstack():
             self.ax.set_title(self.current_title) 
             self.ax_title_locked = False
         self.update()
+    
+    def onlabeltooltoggle(self,event):
+        self.toggle_mode_label(event)
+        
+    def onselecttooltoggle(self,event):
+        self.toggle_mode_select(event)
         
     def create_additional_plot(self):
         try:
@@ -1044,6 +1068,38 @@ class Hyperstack():
         if not self.ax_title_locked:
             self.ax.set_title(title)
         self.current_title = title
+        
+    def toggle_mode_label(self,active=None):
+        # Label overlay. Enable only if the overlay is not None 
+        if active is None:
+            self.mode_label = not self.mode_label
+        else:
+            self.mode_label = active
+            
+        if self.mode_label == True:
+            self.toggle_mode_select(False)
+            self.set_ax_title(
+                        "Labeling overlay. "+\
+                        "ctrl+p to switch to normal mode.\n"+\
+                        "After clicking a point, insert input on terminal")
+        else: self.set_ax_title(self.def_title)
+        
+        if "label" in self.extra_actions.keys():
+            self.extra_actions["label"].setChecked(self.mode_label)
+        
+    def toggle_mode_select(self,active=None):
+        if active is None:
+            self.mode_select = not self.mode_select
+        else:
+            self.mode_select = active
+            
+        if self.mode_select == True: 
+            self.toggle_mode_label(False)
+            self.set_ax_title("Selecting points.")
+        else:self.set_ax_title(self.def_title)
+            
+        if "select" in self.extra_actions.keys():
+            self.extra_actions["select"].setChecked(self.mode_select)   
         
     def hide_overlay(self):
         if self.overlay is not None:
