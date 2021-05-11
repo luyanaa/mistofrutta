@@ -125,7 +125,21 @@ def hyperstack2(data, color = None, cmap = None,
     select_action.setCheckable(True)
     fig.canvas.manager.toolbar.addAction(select_action)
     
-    iperpila.extra_actions = {"label":label_action, "select": select_action}
+    zproj_action = QAction("z proj", fig.canvas)
+    zproj_action.setStatusTip("z projection")
+    zproj_action.triggered.connect(iperpila.onzprojtooltoggle)
+    zproj_action.setCheckable(True)
+    fig.canvas.manager.toolbar.addAction(zproj_action)
+    
+    overlay_action = QAction("overlay", fig.canvas)
+    overlay_action.setStatusTip("Hide/show overlay")
+    overlay_action.triggered.connect(iperpila.onoverlaytooltoggle)
+    overlay_action.setCheckable(True)
+    overlay_action.setChecked(True)
+    fig.canvas.manager.toolbar.addAction(overlay_action)
+    
+    iperpila.extra_actions = {"label":label_action, "select": select_action,
+                              "zproj": zproj_action, "overlay": overlay_action}
      
     # If no live mode has been requested and no plot_now, plot and block.
     if live == False and plot_now == True:
@@ -844,28 +858,9 @@ class Hyperstack():
                 else:
                     self.data = self.data_live
             elif event.key == 'alt+z':
-                self.z_projection = not self.z_projection
-                self.side_views_slice = self.z_projection
-                
-                # Recalculate data_max and data_min
-                if not self.z_projection:
-                    self.data_max = np.nanmax(self.data,axis=(0,2,3))
-                    self.data_min = np.nanmin(self.data,axis=(0,2,3))
-                    self.data_max_side1 = np.nanmax(np.sum(self.data,axis=3),axis=(0,2))
-                    self.data_min_side1 = np.nanmin(np.sum(self.data,axis=3),axis=(0,2))
-                    self.data_max_side2 = np.nanmax(np.sum(self.data,axis=2),axis=(0,2))
-                    self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2),axis=(0,2))
-                else:
-                    self.data_max_side1 = self.data_max
-                    self.data_max_side2 = self.data_max
-                    self.data_min_side1 = self.data_min
-                    self.data_min_side2 = self.data_min
-                    self.data_max = np.nanmax(np.sum(self.data,axis=0),axis=(1,2))
-                    self.data_min = np.nanmin(np.sum(self.data,axis=0),axis=(1,2))
+                self.toggle_z_projection()
             elif event.key == 'alt+o':
-                self.display_overlay = not self.display_overlay
-                if not self.display_overlay: self.hide_overlay()
-                
+                self.toggle_overlay()                
             elif event.key == 'alt+a':
                 self.im_aspect = 'auto' if self.im_aspect == "equal" else "equal"
                 
@@ -976,6 +971,12 @@ class Hyperstack():
     def onselecttooltoggle(self,event):
         self.toggle_mode_select(event)
         
+    def onzprojtooltoggle(self,event):
+        self.toggle_z_projection(event)
+        
+    def onoverlaytooltoggle(self,event):
+        self.toggle_overlay(event)
+
     def create_additional_plot(self):
         try:
             self.ax3
@@ -1068,6 +1069,42 @@ class Hyperstack():
         if not self.ax_title_locked:
             self.ax.set_title(title)
         self.current_title = title
+        
+    def toggle_z_projection(self,active=None):
+        if active is None:
+            self.z_projection = not self.z_projection
+        else:
+            self.z_projection = active
+        self.side_views_slice = self.z_projection
+        
+        # Recalculate data_max and data_min
+        if not self.z_projection:
+            self.data_max = np.nanmax(self.data,axis=(0,2,3))
+            self.data_min = np.nanmin(self.data,axis=(0,2,3))
+            self.data_max_side1 = np.nanmax(np.sum(self.data,axis=3),axis=(0,2))
+            self.data_min_side1 = np.nanmin(np.sum(self.data,axis=3),axis=(0,2))
+            self.data_max_side2 = np.nanmax(np.sum(self.data,axis=2),axis=(0,2))
+            self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2),axis=(0,2))
+        else:
+            self.data_max_side1 = self.data_max
+            self.data_max_side2 = self.data_max
+            self.data_min_side1 = self.data_min
+            self.data_min_side2 = self.data_min
+            self.data_max = np.nanmax(np.sum(self.data,axis=0),axis=(1,2))
+            self.data_min = np.nanmin(np.sum(self.data,axis=0),axis=(1,2))
+            
+        if "zproj" in self.extra_actions.keys():
+            self.extra_actions["zproj"].setChecked(self.z_projection)
+            
+    def toggle_overlay(self,active=None):
+        if active is None:
+            self.display_overlay = not self.display_overlay
+        else:
+            self.display_overlay = active
+        if not self.display_overlay: self.hide_overlay()
+        
+        if "overlay" in self.extra_actions.keys():
+            self.extra_actions["overlay"].setChecked(self.display_overlay)
         
     def toggle_mode_label(self,active=None):
         # Label overlay. Enable only if the overlay is not None 
