@@ -93,13 +93,16 @@ def hyperstack2(data, color = None, cmap = None,
                  rgb=rgb, ext_event_callback=ext_event_callback)
     
     # Bind the figure to the interactions events
-    fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
+    ev_conn_kp = fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
     fig.canvas.mpl_connect('scroll_event', iperpila.onscroll)
-    fig.canvas.mpl_connect('button_press_event', iperpila.onbuttonpress)
+    ev_conn_bp = fig.canvas.mpl_connect('button_press_event', iperpila.onbuttonpress)
     fig.canvas.mpl_connect('axes_enter_event', iperpila.onaxisenter)
     fig.canvas.mpl_connect('figure_enter_event', iperpila.onfigureenter)
     fig.canvas.mpl_connect('figure_leave_event', iperpila.onfigureleave)
     fig.canvas.mpl_connect('close_event', iperpila.onclose)
+    
+    iperpila.event_connections["key_press_event"] = ev_conn_kp
+    iperpila.event_connections["button_press_event"] = ev_conn_bp
     
     # Find the zoom and pan buttons and connect respective events
     actions = fig.canvas.manager.toolbar.actions()
@@ -392,6 +395,8 @@ class Hyperstack():
         -------
         None.
         '''
+        self.event_connections = {}
+        
         self.ext_event_callback = []
         if type(ext_event_callback) is not list: 
             ext_event_callback = [ext_event_callback]
@@ -804,11 +809,12 @@ class Hyperstack():
         # Redraw
         ########
         self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
         
         self.set_last_action(None)
         
         if live:
-            self.fig.canvas.start_event_loop(refresh_time)
+            pass#self.fig.canvas.start_event_loop(refresh_time)
         
         
     def onscroll(self, event):
@@ -889,14 +895,14 @@ class Hyperstack():
                     self.current_point[2] = iy % self.dim[2]
                     self.current_point[3] = ix % self.dim[3]
                     
-                if self.mode_select and event.button == 1:
+                if self.mode_select and event.button == 1 and not event.dblclick:
                     # Add point
                     self.selected_points = np.append(
                                             self.selected_points,
                                             [self.current_point], axis=0)
                     self.selected_points_labels.append("")                        
                     self.set_last_action("point_added")
-                elif self.mode_select and event.button == 3:
+                elif self.mode_select and event.button == 3 and not event.dblclick:
                     # Delete last point
                     if self.selected_points.shape[0] > 0:
                         self.selected_points = np.delete(
@@ -905,7 +911,8 @@ class Hyperstack():
                         self.selected_points_labels.pop(-1)
                         self.set_last_action("point_deleted")
                                                 
-                elif self.mode_label and event.button == 1:
+                elif self.mode_label and event.button == 1 and not event.dblclick:
+                    self.fig.canvas.mpl_disconnect(self.event_connections["button_press_event"])
                     self.mode_typing = True
                     cl, in_selected = self.get_closest_point(include_selected_points=True)
                     if not in_selected:
@@ -924,6 +931,9 @@ class Hyperstack():
                         self.set_last_action("point_labeled:"+",".join([str(_cl) for _cl in cl])+"-"+lab)
                     
                     self.mode_typing = False
+                    ev_conn_kp = self.fig.canvas.mpl_connect('button_press_event',self.onbuttonpress)
+                    self.event_connections["button_press_event"] = ev_conn_kp
+                    
                 self.update()
         #elif self.fig.canvas.toolbar.mode != '' and (self.mode_label or self.mode_select):
         #    print("Unselect toolbar button (zoom/pan) to label or select points.")
@@ -945,24 +955,24 @@ class Hyperstack():
         if event:
             self.ax.set_title("Image pan selected. Unselect it to label/select points.")
             self.ax_title_locked = True
-        elif self.fig.canvas.toolbar.mode == '':
+        elif self.fig.canvas.toolbar.mode=='pan/zoom':
             # Only reset the actual title if no other tool is active.
             # Otherwise, when pan is unselected by clicking on zoom (or vice 
             # versa), this will undo the title setting of the other callback.
-            self.ax.set_title(self.current_title) 
             self.ax_title_locked = False
+            self.set_ax_title(self.current_title) 
         self.update()
         
     def onzoomtoggle(self,event):
         if event:
             self.ax.set_title("Image zoom selected. Unselect it to label/select points.")
             self.ax_title_locked = True
-        elif self.fig.canvas.toolbar.mode == '':
+        elif self.fig.canvas.toolbar.mode=='zoom rect':
             # Only reset the actual title if no other tool is active.
             # Otherwise, when pan is unselected by clicking on zoom (or vice 
             # versa), this will undo the title setting of the other callback.
-            self.ax.set_title(self.current_title) 
             self.ax_title_locked = False
+            self.set_ax_title(self.current_title) 
         self.update()
     
     def onlabeltooltoggle(self,event):
