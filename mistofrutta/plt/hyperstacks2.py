@@ -94,7 +94,7 @@ def hyperstack2(data, color = None, cmap = None,
     
     # Bind the figure to the interactions events
     ev_conn_kp = fig.canvas.mpl_connect('key_press_event', iperpila.onkeypress)
-    fig.canvas.mpl_connect('scroll_event', iperpila.onscroll)
+    ev_conn_sc = fig.canvas.mpl_connect('scroll_event', iperpila.onscroll)
     ev_conn_bp = fig.canvas.mpl_connect('button_press_event', iperpila.onbuttonpress)
     fig.canvas.mpl_connect('axes_enter_event', iperpila.onaxisenter)
     fig.canvas.mpl_connect('figure_enter_event', iperpila.onfigureenter)
@@ -102,6 +102,7 @@ def hyperstack2(data, color = None, cmap = None,
     fig.canvas.mpl_connect('close_event', iperpila.onclose)
     
     iperpila.event_connections["key_press_event"] = ev_conn_kp
+    iperpila.event_connections["scroll_event"] = ev_conn_sc
     iperpila.event_connections["button_press_event"] = ev_conn_bp
     
     # Find the zoom and pan buttons and connect respective events
@@ -818,12 +819,15 @@ class Hyperstack():
         
         
     def onscroll(self, event):
+        self.fig.canvas.mpl_disconnect(self.event_connections["scroll_event"])
         if event.button == 'up':
             self.z = (self.z + 1) % self.dim[0]
         else:
             self.z = (self.z - 1) % self.dim[0]
         
         self.update()
+        ev_conn_sc = self.fig.canvas.mpl_connect('scroll_event',self.onscroll)
+        self.event_connections["scroll_event"] = ev_conn_sc
     
     def onkeypress(self, event):
         self.last_pressed_key = event.key
