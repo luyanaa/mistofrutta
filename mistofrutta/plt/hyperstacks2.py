@@ -475,6 +475,7 @@ class Hyperstack():
         self.ch = 0
         
         self.z_descr = ""
+        self.z_titles = ["" for i in np.arange(self.dim[0])]
         
         self.channel_titles = ["" for i in np.arange(self.dim[1])]
         if self.channel_titles[self.ch]!="":
@@ -628,10 +629,15 @@ class Hyperstack():
             ch_descr = self.channel_titles[self.ch]
         else:
             ch_descr = str(self.ch)
+            
+        if self.z_titles[self.z]!="":
+            z_plane_descr = self.z_titles[self.z]
+        else:
+            z_plane_descr = ""
         
         if not self.z_projection:
             self.im.set_data(self.data[self.z,self.ch])
-            self.ax.set_xlabel('x (z = '+str(self.z)+")   channel "+ch_descr+\
+            self.ax.set_xlabel('x (z = '+str(self.z)+" "+z_plane_descr+")   channel "+ch_descr+\
                                 " | "+self.z_descr)
         else:
             if not self.rgb:
