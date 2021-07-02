@@ -43,17 +43,19 @@ def matrix(theta, ux, uy, uz):
     
     return R
     
-def rotate_hyperstack(im, ch_insp=0, ch_axis=1):
+def rotate_hyperstack(im, ch_insp=0, ch_axis=1, return_all=False):
     A = np.max(im.take(indices=ch_insp, axis=ch_axis),axis=0)
     # Draw the line that should become horizontal
-    linea = mf.geometry.draw.line(A)
+    instr = "CENTERLINE: Click two points defining the centerline. First posterior, then anterior."
+    linea = mf.geometry.draw.line(A,verbose=True,custom_instructions=instr)
     ll = linea.get_line()
     tan = (ll[1,1]-ll[0,1])/(ll[1,0]-ll[0,0])
     theta = np.arctan(tan)
     # Select the origin for the rotation
-    centro = mf.geometry.draw.line(A)
+    instr = "ORIGIN: Click one point at the center of rotation."
+    centro = mf.geometry.draw.line(A,verbose=True,custom_instructions=instr)
     cc = centro.get_line()
-    x0 = cc[0,0]
+    x0 = cc[0,1]
     y0 = cc[0,0]
     
     #Do the rotation - purely around z
@@ -63,8 +65,11 @@ def rotate_hyperstack(im, ch_insp=0, ch_axis=1):
         idx=[slice(None)]*rot_im.ndim
         idx[ch_axis] = ch_j
         rot_im[tuple(idx)] = rotate_3D_image(tmp, theta-np.pi/2., 1.,0.,0.,0.,y0,x0)
-        
-    return rot_im
+    
+    if return_all:
+        return rot_im,theta-np.pi/2.,1.,0.,0.,0.,y0,x0
+    else:
+        return rot_im
         
     
 def rotate_3D_image(A, theta, uz, uy, ux, z0=0.0, y0=0.0, x0=0.0):

@@ -9,18 +9,17 @@ from matplotlib.widgets import PolygonSelector
 from matplotlib.widgets import Slider
 
 class line:
-    def __init__(self, image, verbose=True):
+    def __init__(self, image, verbose=True, custom_instructions=""):
     
         self.X = []
         self.Y = []
     
         # Print instructions for the user
         if verbose:
-            print("\nINSTRUCTIONS TO DRAW THE LINE\n\n"+\
-                "Click to add a point. Right-click to delete the last one. \n"+\
-                "***Add one point outside the image in the posterior direction."+\
-                "***\n"+\
-                "Ignore the first point in the corner of the image. \n" +\
+            print("##INSTRUCTIONS\n"+\
+                "\t"+custom_instructions+"\n"+\
+                "\tClick to add a point. Right-click to delete the last one. "+\
+                "Ignore the first point in the corner of the image. " +\
                 "Once you're done clicking, simply close the figure window.")    
         
         # Create the figure and plot the image
