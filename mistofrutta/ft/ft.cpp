@@ -32,7 +32,7 @@ std::complex<double> ft_cubic(std::complex<double>* h, int32_t M, double a, doub
     
     // If th is small, use the expansions for W and a_j, so that you don't
     // run in numerical errors because of the limits.
-    if(abs(th)<5e-2){
+    if(abs(th)<5e-3){
         double th6 = pow(th,6);
         double th5 = pow(th,5);
         double th7 = pow(th,7);

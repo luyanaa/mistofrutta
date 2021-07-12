@@ -440,6 +440,9 @@ class Hyperstack():
         self.n_colors = len(self.cmaps)     
         self.n_overlay_colors = len(self.good_overlay_colors)
         
+        self.overlay_color = None
+        self.overlay_fontsize = None
+        
         # The default data dimensionality is 4, i.e. [z, ch, y, x].
         # If the data is 2 or 3-dimensional, create a view of the array with
         # additional first axes, so that the syntax from now on can be for
@@ -760,14 +763,19 @@ class Hyperstack():
                 
             # Add to the plot
             self.overlay_labels_plot = []
+            if self.overlay_color is None:
+                ann_col = self.good_overlay_colors[self.ch%self.n_overlay_colors]
+            else:
+                ann_col = self.overlay_color
+            ann_fontsize = 8 if self.overlay_fontsize is None else self.overlay_fontsize
+            
             for i in np.arange(len(ovrl_labs)):
                 ann = self.ax.annotate(ovrl_labs[i].lstrip("0"),
                                        xy=(ovrl[i,-1],ovrl[i,-2]),
                                        xytext=(ovrl[i,-1]+self.overlay_label_dx,
                                                ovrl[i,-2]+self.overlay_label_dy),
-                                       color=self.good_overlay_colors[
-                                                self.ch%self.n_overlay_colors],
-                                       fontsize=8)
+                                       color=ann_col,
+                                       fontsize=ann_fontsize)
                 self.overlay_labels_plot.append(ann)
                 
         #################
@@ -802,14 +810,18 @@ class Hyperstack():
             
             # Add to the plot
             self.selected_points_labels_plot = []
+            if self.overlay_color is None:
+                ann_col = self.good_overlay_colors[self.ch%self.n_overlay_colors]
+            else:
+                ann_col = self.overlay_color
+            ann_fontsize = 8 if self.overlay_fontsize is None else self.overlay_fontsize
             for i in np.arange(len(slpts_labs)):
                 ann = self.ax.annotate(slpts_labs[i].lstrip("0"),
                                        xy=(slpts[i,-1],ovrl[i,-2]),
                                        xytext=(slpts[i,-1]+self.overlay_label_dx,
                                                slpts[i,-2]+self.overlay_label_dy),
-                                       color=self.good_overlay_colors[
-                                                self.ch%self.n_overlay_colors],
-                                       fontsize=8)
+                                       color=ann_col,
+                                       fontsize=ann_fontsize)
                 self.selected_points_labels_plot.append(ann)
         
         ########

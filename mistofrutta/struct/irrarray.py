@@ -65,6 +65,8 @@ class irrarray(np.ndarray):
         if obj is None: return
         self.columnNames = getattr(obj, 'columnNames', ["z","y","x"])
         self.upToIndex = getattr(obj, 'upToIndex', {})
+        self.first_index = self.upToIndex
+        self.firstIndex = self.upToIndex
         self.coord = self.view(np.ndarray) #useful for __dict__ serialization
         
     def __array_wrap__(self, out_arr, context=None):
