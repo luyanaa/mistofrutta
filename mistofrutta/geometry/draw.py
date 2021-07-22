@@ -246,7 +246,9 @@ class polygon:
     def getPolygon(self):
         return self.verts
         
-def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,return_all=False,scale=1):
+def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,
+               return_all=False,scale=1,
+               message="Select rectangle to crop the image"):
     if folder is not None: 
         if folder[-1] != "/": folder+="/"
         
@@ -258,7 +260,7 @@ def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,return_all
         rect = rectangle(np.sum(im,axis=sum_tuple))
         r_c = rect.getRectangle()
     elif not os.path.isfile(folder+fname):
-        print("Select rectangle to crop the image")
+        print(message)
         rect = rectangle(np.sum(im,axis=sum_tuple))
         r_c = rect.getRectangle()
         np.savetxt(folder+fname,r_c,fmt="%d")
