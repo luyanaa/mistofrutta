@@ -312,6 +312,8 @@ class Hyperstack():
             '\tCtrl+o to add points (left click adds, right click removes last)\n'+\
             'Alt+ combinations control visualization modes\n'+\
             '\tAlt+z to toggle between single plane and z-projection \n'+\
+            '\tAlt+x increases the number of planes for the partial z-projection\n'+\
+            '\tAlt+c decreases the number of planes for the partial z-projection\n'+\
             '\tAlt+o to hide/display overlay \n'+\
             '\tAlt+a to toggle between \'equal\' and \'auto\' aspect ratio\n'+\
             '\tAlt+l to switch between live and static mode \n'+\
@@ -469,6 +471,9 @@ class Hyperstack():
             self.data = data[zero]
         
         self.data_live = self.data
+        self.data_raw = np.copy(self.data)
+        self.data_pzs = np.copy(self.data)
+        self.partial_zproj_n = 0
         
         # Extract information about the data to be plotted
         self.dim = self.data.shape
@@ -640,7 +645,7 @@ class Hyperstack():
         
         if not self.z_projection:
             self.im.set_data(self.data[self.z,self.ch])
-            self.ax.set_xlabel('x (z = '+str(self.z)+" "+z_plane_descr+")   channel "+ch_descr+\
+            self.ax.set_xlabel('x (z = '+str(self.z)+"+/-"+str(self.partial_zproj_n)+" "+z_plane_descr+")   channel "+ch_descr+\
                                 " | "+self.z_descr)
         else:
             if not self.rgb:
@@ -728,7 +733,8 @@ class Hyperstack():
             
             # Extract the points to be plotted in this slice.
             if ovrl.shape[1] == 3 and not self.z_projection:
-                ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                #ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                ovrl = ovrl[np.where(np.abs(ovrl[:,0]-self.z)<=self.partial_zproj_n)]
             else:
                 pass
                 
@@ -755,8 +761,10 @@ class Hyperstack():
             # Extract the points to be plotted in this slice.
             if self.overlay.shape[-1] == 3 and not self.z_projection:
                 ovrl = self.overlay(ch=self.ch%self.overlay_n_ch)
-                ovrl_labs = ovrl_labs[np.where(ovrl[:,0]==self.z%self.dim[0])]
-                ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                #ovrl_labs = ovrl_labs[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                #ovrl = ovrl[np.where(ovrl[:,0]==self.z%self.dim[0])]
+                ovrl_labs = ovrl_labs[np.where(np.abs(ovrl[:,0]-self.z)<=self.partial_zproj_n)]
+                ovrl = ovrl[np.where(np.abs(ovrl[:,0]-self.z)<=self.partial_zproj_n)]
                 
             else:
                 pass
@@ -782,8 +790,10 @@ class Hyperstack():
         # SELECTED POINTS
         #################
         if self.selected_points.shape[0] > 0:
+            #sel_pts = self.selected_points[np.where(
+            #                    (self.selected_points[:,0] == self.z)*(self.selected_points[:,1] == self.ch))]
             sel_pts = self.selected_points[np.where(
-                                (self.selected_points[:,0] == self.z)*(self.selected_points[:,1] == self.ch))]
+                                (np.abs(self.selected_points[:,0]-self.z)<=self.partial_zproj_n)*(self.selected_points[:,1] == self.ch))]
             
             self.mode_select_plot.set_xdata(sel_pts[:,-1])
             self.mode_select_plot.set_ydata(sel_pts[:,-2])
@@ -804,7 +814,7 @@ class Hyperstack():
                 except:
                     pass
             
-            indices = np.where((self.selected_points[:,0]==self.z)*(self.selected_points[:,1]==self.ch))
+            indices = np.where((np.abs(self.selected_points[:,0]-self.z)<=self.partial_zproj_n)*(self.selected_points[:,1]==self.ch))
             slpts = self.selected_points[indices]
             slpts_labs = np.array(self.selected_points_labels)[indices]
             
@@ -889,6 +899,10 @@ class Hyperstack():
                 self.toggle_z_projection()
             elif event.key == 'alt+o':
                 self.toggle_overlay()                
+            elif event.key == 'alt+x':
+                self.partial_zproj(1)
+            elif event.key == 'alt+c':
+                self.partial_zproj(-1)
             elif event.key == 'alt+a':
                 self.im_aspect = 'auto' if self.im_aspect == "equal" else "equal"
                 
@@ -1180,6 +1194,35 @@ class Hyperstack():
                     t.remove()
                 except:
                     pass
+                    
+    def partial_zproj(self,change):
+        
+        if self.z_projection: return None
+        
+        self.partial_zproj_n += change
+        
+        if self.partial_zproj_n<0: 
+            self.partial_zproj_n=0
+            self.data = np.copy(self.data_raw)
+        elif self.partial_zproj_n>(self.data_raw.shape[0]-1)//2:
+            self.partial_zproj_n-=change
+        else:
+            n = self.partial_zproj_n
+            for i in np.arange(self.data_raw.shape[0])[n:-n]:
+                if self.rgb:
+                    self.data_pzs[i] = np.max(self.data_raw[i-n:i+n+1],axis=0)
+                else:
+                    self.data_pzs[i] = np.sum(self.data_raw[i-n:i+n+1],axis=0)
+            
+            self.data = self.data_pzs
+            
+        # Recalculate data_max and data_min
+        self.data_max = np.nanmax(self.data,axis=(0,2,3))
+        self.data_min = np.nanmin(self.data,axis=(0,2,3))
+        self.data_max_side1 = np.nanmax(np.sum(self.data,axis=3),axis=(0,2))
+        self.data_min_side1 = np.nanmin(np.sum(self.data,axis=3),axis=(0,2))
+        self.data_max_side2 = np.nanmax(np.sum(self.data,axis=2),axis=(0,2))
+        self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2),axis=(0,2))
         
     def show_instructions(self):
         self.instructions_shown = not self.instructions_shown
