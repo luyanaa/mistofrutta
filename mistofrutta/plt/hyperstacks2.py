@@ -827,7 +827,7 @@ class Hyperstack():
             ann_fontsize = 8 if self.overlay_fontsize is None else self.overlay_fontsize
             for i in np.arange(len(slpts_labs)):
                 ann = self.ax.annotate(slpts_labs[i].lstrip("0"),
-                                       xy=(slpts[i,-1],ovrl[i,-2]),
+                                       xy=(slpts[i,-1],slpts[i,-2]), #it was ovrl[i,-2] but I think that's wrong
                                        xytext=(slpts[i,-1]+self.overlay_label_dx,
                                                slpts[i,-2]+self.overlay_label_dy),
                                        color=ann_col,
