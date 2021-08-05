@@ -9,10 +9,11 @@ from matplotlib.widgets import PolygonSelector
 from matplotlib.widgets import Slider
 
 class line:
-    def __init__(self, image, verbose=True, custom_instructions=""):
+    def __init__(self, image, verbose=True, custom_instructions="", yx=False):
     
         self.X = []
         self.Y = []
+        self.yx = yx
     
         # Print instructions for the user
         if verbose:
@@ -25,7 +26,10 @@ class line:
         # Create the figure and plot the image
         fig = plt.figure(1)
         ax1 = fig.add_subplot(111)
-        ax1.imshow(np.swapaxes(image,0,1))
+        if yx:
+            ax1.imshow(image)
+        else:
+            ax1.imshow(np.swapaxes(image,0,1))
         self.line, = ax1.plot(0,0,'*k')
         
         self.cid = self.line.figure.canvas.mpl_connect('button_press_event', self)
@@ -50,14 +54,17 @@ class line:
 
     def getLine(self):
         # Convert to np.array and return    
-        return np.array([self.X,self.Y]).T #[::-1]
+        if self.yx:
+            return np.array([self.Y,self.X]).T
+        else:
+            return np.array([self.X,self.Y]).T #[::-1]
         
     def get_line(self):
         return self.getLine()
         
         
 class rectangle:
-    def __init__(self, image, multiple=False):
+    def __init__(self, image, multiple=False, title="Select a rectangle"):
     
         self.x1 = 0.0
         self.x2 = 0.0
@@ -70,7 +77,10 @@ class rectangle:
         self.Image = image
     
         # Print instructions for the user
-        if self.multiple: print("Multiple rectangles. ")
+        if self.multiple: 
+            print("Multiple rectangles. ")
+            title = "Select multiple rectangles"
+        
         print("Press h for instructions\n")
         self.instructions = "\nINSTRUCTIONS TO DRAW THE RECTANGLE\n\n"+\
             "Click and drag the pointer.\n"+\
@@ -90,6 +100,7 @@ class rectangle:
         # Create the figure
         self.fig = plt.figure(1)
         self.ax1 = self.fig.add_subplot(111)
+        self.ax1.set_title(title)
         
         # Set a custom viridis color map useful for thresholding
         self.cmap = plt.cm.viridis
@@ -257,11 +268,11 @@ def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,
         if i!=y_axis and i!=x_axis: sum_tuple.append(i)
     sum_tuple = tuple(sum_tuple)
     if folder is None:
-        rect = rectangle(np.sum(im,axis=sum_tuple))
+        rect = rectangle(np.sum(im,axis=sum_tuple),title=message)
         r_c = rect.getRectangle()
     elif not os.path.isfile(folder+fname):
         print(message)
-        rect = rectangle(np.sum(im,axis=sum_tuple))
+        rect = rectangle(np.sum(im,axis=sum_tuple),title=message)
         r_c = rect.getRectangle()
         np.savetxt(folder+fname,r_c,fmt="%d")
     else:
