@@ -62,10 +62,12 @@ def rotate_hyperstack(im, ch_insp=0, ch_axis=1, return_all=False):
     thetap = np.pi-theta
     nxa = abs(int(diag*np.cos(alpha-abs(thetap))))
     nxb = abs(int(diag*np.cos(alpha-abs(thetap-np.pi))))
-    nx = max(nxa,nxb)
+    nxc = abs(int(diag*np.cos(alpha+abs(thetap-np.pi))))
+    nx = np.max([nxa,nxb,nxc])
     nya = abs(int(diag*np.sin(np.pi-alpha-abs(thetap))))
     nyb = abs(int(diag*np.sin(np.pi-alpha-abs(thetap-np.pi))))
-    ny = max(nya,nyb)
+    nyc = abs(int(diag*np.sin(np.pi-alpha+abs(thetap-np.pi))))
+    ny = np.max([nya,nyb,nyc])
     rot_im = np.zeros((nz,nch_0,ny,nx))
     y0 = ny//2
     x0 = nx//2
@@ -127,10 +129,12 @@ def rotate_3D_image(A, theta, uz, uy, ux, z0=0.0, y0=0.0, x0=0.0):
         alpha = np.arctan(ny_0/nx_0)
         nxa = abs(int(diag*np.cos(alpha-abs(theta))))
         nxb = abs(int(diag*np.cos(alpha-abs(theta-np.pi))))
-        nx = max(nxa,nxb)
+        nxc = abs(int(diag*np.cos(alpha+abs(theta-np.pi))))
+        nx = np.max([nxa,nxb,nxc])
         nya = abs(int(diag*np.sin(np.pi-alpha-abs(theta))))
         nyb = abs(int(diag*np.sin(np.pi-alpha-abs(theta-np.pi))))
-        ny = max(nya,nyb)
+        nyc = abs(int(diag*np.sin(np.pi-alpha+abs(theta-np.pi))))
+        ny = np.max([nya,nyb,nyc])
     
         z0p,y0p,x0p = 0,ny//2,nx//2
     

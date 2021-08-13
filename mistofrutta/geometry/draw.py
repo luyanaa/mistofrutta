@@ -9,7 +9,8 @@ from matplotlib.widgets import PolygonSelector
 from matplotlib.widgets import Slider
 
 class line:
-    def __init__(self, image, verbose=True, custom_instructions="", yx=False):
+    def __init__(self, image, verbose=True, custom_instructions="", yx=False,
+                 plot_now = True):
     
         self.X = []
         self.Y = []
@@ -17,14 +18,17 @@ class line:
     
         # Print instructions for the user
         if verbose:
-            print("##INSTRUCTIONS\n"+\
-                "\t"+custom_instructions+"\n"+\
-                "\tClick to add a point. Right-click to delete the last one. "+\
+            print("INSTRUCTIONS\n"+\
+                ""+custom_instructions+"\n"+\
+                "Click to add a point. Right-click to delete the last one. "+\
                 "Ignore the first point in the corner of the image. " +\
-                "Once you're done clicking, simply close the figure window.")    
+                "Once you're done clicking, simply close the figure window.\n")    
         
         # Create the figure and plot the image
-        fig = plt.figure(1)
+        cfn = plt.gcf().number
+        if len(plt.gcf().axes) != 0: cfn += 1
+        # Initialize plot
+        fig = plt.figure(cfn)
         ax1 = fig.add_subplot(111)
         if yx:
             ax1.imshow(image)
@@ -35,7 +39,7 @@ class line:
         self.cid = self.line.figure.canvas.mpl_connect('button_press_event', self)
         
         # Start displaying the plot
-        plt.show()
+        if plot_now: plt.show()
 
     # Define callback function to be called when there is a mouse click
     def __call__(self, event):
