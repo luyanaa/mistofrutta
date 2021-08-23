@@ -219,7 +219,7 @@ class rectangle:
         return self.Mask
         
 class polygon:
-    def __init__(self, image, dataType='image'):
+    def __init__(self, image, dataType='image',xlim=None,ylim=None):
     
         self.x1 = 0.0
         self.x2 = 0.0
@@ -243,10 +243,13 @@ class polygon:
         self.ax1 = fig.add_subplot(111)
         if dataType == 'image':
             self.ax1.imshow(image.T)
-        else:
+        elif dataType == 'points':
             self.ax1.plot(*image.T[0:2],'ob',markersize=3)
-            self.ax1.set_xlim(0,512)
-            self.ax1.set_xlim(0,512)
+            
+        if xlim is not None:
+            self.ax1.set_xlim(xlim[0],xlim[1])
+        if ylim is not None:
+            self.ax1.set_ylim(ylim[0],ylim[1])
         
         self.ps = PolygonSelector(self.ax1, self.onselect, lineprops=lineprops,
                                     markerprops=markerprops)
@@ -291,7 +294,8 @@ def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,
     else:
         return im
         
-def select_points(points, mask, method='polygon',return_all=False):
+def select_points(points, mask, method='polygon',return_all=False,swap_coords=False):
+    if swap_coords: points = points[:,::-1]
     if method=='polygon':
         polygon_mask = geom.polygon.Polygon(mask)
         bool_mask = np.ones(len(points),dtype=bool)
@@ -306,6 +310,7 @@ def select_points(points, mask, method='polygon',return_all=False):
                     (points[:,0] < mask[1,1])
     
     points_out = points[bool_mask]
+    if swap_coords: points_out = points_out[:,::-1]
     if return_all:              
         return points_out, bool_mask
     else:

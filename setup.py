@@ -50,11 +50,19 @@ git_url = repo.remotes.origin.url
 v = repo.git.describe(always=True)
 if repo.is_dirty(): v += ".dirty"
 
+requirements = [
+    "numpy",
+    "matplotlib",
+    "shapely",
+]
+
+
 setup(name='mistofrutta',
       version=v,
       description='Collection of random utilities',
       author='Francesco Randi',
       author_email='francesco.randi@gmail.com',
       packages=['mistofrutta','mistofrutta.plt','mistofrutta.geometry','mistofrutta.struct','mistofrutta.approx','mistofrutta.ft'],
+      install_requires=requirements,
       ext_modules = [approx_c, _ft, _convolve]
      )
