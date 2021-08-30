@@ -6,7 +6,7 @@ from matplotlib.backend_tools import ToolToggleBase
 from PyQt5.QtCore import pyqtRemoveInputHook
 from PyQt5.QtWidgets import QAction
 import string
-import sys, termios
+import sys, termios,os
 
 class LabelTool(ToolToggleBase):
     default_keymap = 'ctrl+p'
@@ -948,6 +948,11 @@ class Hyperstack():
                         self.set_last_action("point_deleted")
                                                 
                 elif self.mode_label and event.button == 1 and not event.dblclick:
+                    if self.parent_term is not None:
+                        title = self.fig.canvas.get_window_title()
+                        self.fig.canvas.set_window_title(title+"*")
+                        os.system("wmctrl -a "+self.parent_term)
+                        
                     self.fig.canvas.mpl_disconnect(self.event_connections["button_press_event"])
                     self.mode_typing = True
                     cl, in_selected = self.get_closest_point(include_selected_points=True)
@@ -969,6 +974,10 @@ class Hyperstack():
                     self.mode_typing = False
                     ev_conn_kp = self.fig.canvas.mpl_connect('button_press_event',self.onbuttonpress)
                     self.event_connections["button_press_event"] = ev_conn_kp
+                    
+                    if self.parent_term is not None:
+                        os.system("wmctrl -a "+title+"*")
+                        self.fig.canvas.set_window_title(title)
                     
                 self.update()
         #elif self.fig.canvas.toolbar.mode != '' and (self.mode_label or self.mode_select):

@@ -4,6 +4,7 @@ mistofrutta/__init__.py
 mistofrutta.egg-info/PKG-INFO
 mistofrutta.egg-info/SOURCES.txt
 mistofrutta.egg-info/dependency_links.txt
+mistofrutta.egg-info/requires.txt
 mistofrutta.egg-info/top_level.txt
 mistofrutta/approx/__init__.py
 mistofrutta/approx/_approx_c.cpp
