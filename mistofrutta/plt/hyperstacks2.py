@@ -359,6 +359,7 @@ class Hyperstack():
     new_action = False
     new_none_action = False
     last_action = ""
+    new_changes = False
     
     def __init__(self, fig, data, color = None, cmap = None, 
                  overlay = None, overlay_labels = None, manual_labels=None,
@@ -842,9 +843,11 @@ class Hyperstack():
         
         self.set_last_action(None)
         
-        if live:
-            pass#self.fig.canvas.start_event_loop(refresh_time)
+        self.new_changes = False
         
+        if live:
+            #self.fig.canvas.start_event_loop(refresh_time)
+            pass#
         
     def onscroll(self, event):
         self.fig.canvas.mpl_disconnect(self.event_connections["scroll_event"])
@@ -853,12 +856,15 @@ class Hyperstack():
         else:
             self.z = (self.z - 1) % self.dim[0]
         
+        self.set_last_action("z_changed:"+str(self.z))        
+        self.new_changes = True
         self.update()
         ev_conn_sc = self.fig.canvas.mpl_connect('scroll_event',self.onscroll)
         self.event_connections["scroll_event"] = ev_conn_sc
     
     def onkeypress(self, event):
         self.last_pressed_key = event.key
+        self.new_changes = True
         
         if not self.mode_typing: # To prevent actions while typing labels
             if event.key == 'h':
@@ -877,8 +883,10 @@ class Hyperstack():
                 self.scale_min[self.ch] = max(self.scale_min[self.ch]-0.05,0.)
             elif event.key == 'up':
                 self.z = (self.z + 1) % self.dim[0]
+                self.set_last_action("z_changed:"+str(self.z))
             elif event.key == 'down':
                 self.z = (self.z - 1) % self.dim[0]
+                self.set_last_action("z_changed:"+str(self.z))
             elif event.key == 'alt+0':
                 self.im.norm.vmin = 0
             elif event.key == 'alt+9':
@@ -912,6 +920,7 @@ class Hyperstack():
             elif event.key == 'ctrl+p' and self.overlay is not None:
                 self.toggle_mode_label()
         
+        
         #elif event.key == 'ctrl+p' and self.overlay is not None:
         #    self.mode_label = not self.mode_label
         #    if self.mode_label == False: self.ax.set_title(self.def_title)          
@@ -919,6 +928,7 @@ class Hyperstack():
         self.update()
         
     def onbuttonpress(self, event):
+        self.new_changes = True
         if self.fig.canvas.toolbar.mode == '':
             ix, iy = event.xdata, event.ydata
             self.last_clicked_point[0] = iy
@@ -995,8 +1005,10 @@ class Hyperstack():
     
     def onclose(self,event):
         self.has_been_closed = True
+        self.set_last_action("closed")
         
     def onpantoggle(self,event):
+        self.new_changes = True
         if event:
             self.ax.set_title("Image pan selected. Unselect it to label/select points.")
             self.ax_title_locked = True
@@ -1009,6 +1021,7 @@ class Hyperstack():
         self.update()
         
     def onzoomtoggle(self,event):
+        self.new_changes = True
         if event:
             self.ax.set_title("Image zoom selected. Unselect it to label/select points.")
             self.ax_title_locked = True
@@ -1022,15 +1035,19 @@ class Hyperstack():
     
     def onlabeltooltoggle(self,event):
         self.toggle_mode_label(event)
+        self.update()
         
     def onselecttooltoggle(self,event):
         self.toggle_mode_select(event)
+        self.update()
         
     def onzprojtooltoggle(self,event):
         self.toggle_z_projection(event)
+        self.update()
         
     def onoverlaytooltoggle(self,event):
         self.toggle_overlay(event)
+        self.update()
 
     def create_additional_plot(self):
         try:
@@ -1125,7 +1142,16 @@ class Hyperstack():
             self.ax.set_title(title)
         self.current_title = title
         
+    def update_z_externally(self,action):
+        if action is not None and type(action) == str:
+            a = action.split(":")
+            if a[0] == "z_changed":
+                z_new = int(a[1])
+                self.z = z_new % self.dim[0]
+                self.update()
+        
     def toggle_z_projection(self,active=None):
+        self.new_changes = True
         if active is None:
             self.z_projection = not self.z_projection
         else:
@@ -1152,6 +1178,7 @@ class Hyperstack():
             self.extra_actions["zproj"].setChecked(self.z_projection)
             
     def toggle_overlay(self,active=None):
+        self.new_changes = True
         if active is None:
             self.display_overlay = not self.display_overlay
         else:
@@ -1162,6 +1189,7 @@ class Hyperstack():
             self.extra_actions["overlay"].setChecked(self.display_overlay)
         
     def toggle_mode_label(self,active=None):
+        self.new_changes = True
         # Label overlay. Enable only if the overlay is not None 
         if active is None:
             self.mode_label = not self.mode_label
@@ -1180,6 +1208,7 @@ class Hyperstack():
             self.extra_actions["label"].setChecked(self.mode_label)
         
     def toggle_mode_select(self,active=None):
+        self.new_changes = True
         if active is None:
             self.mode_select = not self.mode_select
         else:
@@ -1194,6 +1223,7 @@ class Hyperstack():
             self.extra_actions["select"].setChecked(self.mode_select)   
         
     def hide_overlay(self):
+        self.new_changes = True
         if self.overlay is not None:
             self.overlay_plot.set_xdata([])
             self.overlay_plot.set_ydata([])
@@ -1205,7 +1235,7 @@ class Hyperstack():
                     pass
                     
     def partial_zproj(self,change):
-        
+        self.new_changes = True
         if self.z_projection: return None
         
         self.partial_zproj_n += change
@@ -1234,6 +1264,7 @@ class Hyperstack():
         self.data_min_side2 = np.nanmin(np.sum(self.data,axis=2),axis=(0,2))
         
     def show_instructions(self):
+        self.new_changes = True
         self.instructions_shown = not self.instructions_shown
         if self.instructions_shown:
             if not self.side_views:
@@ -1247,6 +1278,7 @@ class Hyperstack():
             self.instructions_plot.remove()
             
     def toggle_message(self, message=None):
+        self.new_changes = True
         self.message_shown = not self.message_shown
         if self.message_shown: 
             if message is not None and self.side_views:
@@ -1324,3 +1356,8 @@ class Hyperstack():
     def get_last_action(self):
         self.new_action = False
         return self.last_action
+        
+    def close_externally(self,action):
+        if action is not None:
+            if action == "closed":
+                plt.close(self.fig)
