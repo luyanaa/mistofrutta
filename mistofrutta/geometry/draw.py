@@ -283,7 +283,9 @@ def crop_image(im,folder=None,fname='rectangle.txt',y_axis=2,x_axis=3,
         r_c = rect.getRectangle()
         np.savetxt(folder+fname,r_c,fmt="%d")
     else:
-        r_c = (np.loadtxt(folder+fname,dtype=int)*scale).astype(int)
+        r_c = np.loadtxt(folder+fname)
+        r_c *= scale
+        r_c = r_c.astype(int)
     
     #Crop the image
     im = im.take(indices=range(r_c[0,0],r_c[1,0]), axis=y_axis)

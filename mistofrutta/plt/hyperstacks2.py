@@ -400,6 +400,7 @@ class Hyperstack():
         None.
         '''
         self.event_connections = {}
+        self.parent_term = None
         
         self.ext_event_callback = []
         if type(ext_event_callback) is not list: 
