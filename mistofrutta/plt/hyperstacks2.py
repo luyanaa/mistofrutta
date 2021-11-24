@@ -310,6 +310,7 @@ class Hyperstack():
             'Ctrl+ combinations control operating modes\n'+\
             '\tCtrl+p to label points (type label in terminal)\n'+\
             '\tCtrl+o to add points (left click adds, right click removes last)\n'+\
+            '\tCtrl+l to find labeled points)\n'+\
             'Alt+ combinations control visualization modes\n'+\
             '\tAlt+z to toggle between single plane and z-projection \n'+\
             '\tAlt+x increases the number of planes for the partial z-projection\n'+\
