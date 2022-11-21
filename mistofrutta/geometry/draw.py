@@ -114,7 +114,7 @@ class rectangle:
         self.cmap = matplotlib.colors.LinearSegmentedColormap.from_list('mcm',cmaplist, self.cmap.N)
         
         # Plot the image
-        self.ax1.imshow(self.Image.T,cmap=self.cmap)
+        self.ax1.imshow(self.Image.T,cmap=self.cmap,aspect="auto")
         
         # Prepare the rectangle selector
         rectprops = dict(facecolor='red', edgecolor = 'white',

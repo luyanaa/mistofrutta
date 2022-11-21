@@ -3,3 +3,4 @@ build/
 prova.py
 mistofrutta/approx/_approx_c_with_steps.cpp
 mistofrutta.egg-info/PKG-INFO
+line.select
