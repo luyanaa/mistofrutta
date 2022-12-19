@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt, matplotlib.gridspec as gridspec
 import matplotlib.ticker
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 def make_alphacolorbar(cax,vmin,vmax,tickstep,
                        alphamin,alphamax,nalphaticks,
@@ -207,3 +208,22 @@ def simple_beeswarm(y, nbins=None):
             x[b] = (0.5 + j / 3 + np.arange(len(b))) * -dx
 
     return x
+    
+def p_to_stars(p):
+    if p<=0.0001: stars = "****"
+    elif p<=0.001: stars="***"
+    elif p<=0.01: stars="**"
+    elif p<=0.05: stars="*"
+    else: stars = "n.s."
+    
+    return stars
+    
+def multicolor_3d_line(ax,x,y,z,t,c):
+    points = np.array([x,y,z]).transpose().reshape(-1,1,3)
+    segs = np.concatenate([points[:-1],points[1:]],axis=1)
+    lc = Line3DCollection(segs, cmap=c)
+    lc.set_array(t)
+    ax.add_collection3d(lc)
+    ax.set_xlim(np.min(x),np.max(x))
+    ax.set_ylim(np.min(y),np.max(y))
+    ax.set_zlim(np.min(z),np.max(z))
