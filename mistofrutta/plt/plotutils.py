@@ -227,3 +227,4 @@ def multicolor_3d_line(ax,x,y,z,t,c):
     ax.set_xlim(np.min(x),np.max(x))
     ax.set_ylim(np.min(y),np.max(y))
     ax.set_zlim(np.min(z),np.max(z))
+    return(lc)

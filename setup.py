@@ -62,7 +62,7 @@ setup(name='mistofrutta',
       description='Collection of random utilities',
       author='Francesco Randi',
       author_email='francesco.randi@gmail.com',
-      packages=['mistofrutta','mistofrutta.plt','mistofrutta.geometry','mistofrutta.struct','mistofrutta.approx','mistofrutta.ft'],
+      packages=['mistofrutta','mistofrutta.plt','mistofrutta.geometry','mistofrutta.struct','mistofrutta.approx','mistofrutta.ft', 'mistofrutta.num'],
       install_requires=requirements,
       ext_modules = [approx_c, _ft, _convolve]
      )
