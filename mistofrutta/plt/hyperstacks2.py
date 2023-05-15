@@ -964,8 +964,8 @@ class Hyperstack():
                                                 
                 elif self.mode_label and event.button == 1 and not event.dblclick:
                     if self.parent_term is not None:
-                        title = self.fig.canvas.get_window_title()
-                        self.fig.canvas.set_window_title(title+"*")
+                        title = self.fig.canvas.manager.get_window_title()
+                        self.fig.canvas.manager.set_window_title(title+"*")
                         os.system("wmctrl -a "+self.parent_term)
                         
                     self.fig.canvas.mpl_disconnect(self.event_connections["button_press_event"])
@@ -992,7 +992,7 @@ class Hyperstack():
                     
                     if self.parent_term is not None:
                         os.system("wmctrl -a "+title+"*")
-                        self.fig.canvas.set_window_title(title)
+                        self.fig.canvas.manager.set_window_title(title)
                     
                 self.update()
         #elif self.fig.canvas.toolbar.mode != '' and (self.mode_label or self.mode_select):
@@ -1364,8 +1364,8 @@ class Hyperstack():
         
     def find_label(self):
         if self.parent_term is not None:
-                title = self.fig.canvas.get_window_title()
-                self.fig.canvas.set_window_title(title+"*")
+                title = self.fig.canvas.manager.get_window_title()
+                self.fig.canvas.manager.set_window_title(title+"*")
                 os.system("wmctrl -a "+self.parent_term)
                 
         self.fig.canvas.mpl_disconnect(self.event_connections["button_press_event"])
@@ -1379,15 +1379,17 @@ class Hyperstack():
                 short_man_lab[ich,il] = short_man_lab[ich,il][:n_char]
         
         labs_found = np.where(short_man_lab==lab)[1]
-        if len(labs_found)==1:
+        if len(labs_found)==0:
+            print("\tLabel not found")
+        elif len(labs_found)==1:
             z = self.overlay(ch=self.ch%self.overlay_n_ch)[labs_found[0]][0]
         elif len(labs_found)>1:
-            print("\tNeurons found:")
+            print("\tLabels found:")
             for ilf in np.arange(len(labs_found)):
                 lf = labs_found[ilf]
                 lablf = self.manual_labels[self.ch][lf]
                 print("\t\t"+str(ilf)+" "+lablf)
-            ilf = input("\tTo which neuron do you want to go? (0,1,2,...) ")
+            ilf = input("\tTo which label do you want to go? (0,1,2,...) ")
             try:
                 ilf = int(ilf)
             except:

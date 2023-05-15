@@ -173,7 +173,7 @@ def simple_beeswarm(y, nbins=None):
     """
     y = np.asarray(y)
     if nbins is None:
-        nbins = len(y) // 6
+        nbins = len(y) // min(6,len(y))
 
     # Get upper bounds of bins
     x = np.zeros(len(y))
